@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/joho/godotenv"
+	"github.com/smatand/vinted_go/bot"
 )
 
 func main() {
@@ -15,4 +15,6 @@ func main() {
 	}
 
 	discordToken := os.Getenv("DISCORD_TOKEN")
+
+	discordBot.Run(discordToken)
 }
