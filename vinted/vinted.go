@@ -9,25 +9,27 @@ import (
 )
 
 // extracts IDs from string like 'catalog[]=79&catalog[]=80' -> [79, 80]
-func extractCatalogIDs(urlStr string) []int {
+func extractIDs(urlStr string, paramName string) []int {
 	parsedUrl, err := url.Parse(urlStr)
 	if err != nil {
 		log.Printf("Could not parse url %v: %e", urlStr, err)
 		return nil
 	}
 
-	// could be url like /catalog/2050-clothing, handle this separately
-	pathSegments := strings.Split(parsedUrl.Path, "/")
-	if len(pathSegments) > 2 {
-		catalogSegment := pathSegments[2]
-		catalogIDStr := strings.Split(catalogSegment, "-")[0]
-		catalogID, err := strconv.Atoi(catalogIDStr)
-		if err == nil {
-			return []int{catalogID}
-		}
+	if paramName == "catalog[]" {
+		// could be url like /catalog/2050-clothing, handle this separately
+		pathSegments := strings.Split(parsedUrl.Path, "/")
+		if len(pathSegments) > 2 {
+			catalogSegment := pathSegments[2]
+			catalogIDStr := strings.Split(catalogSegment, "-")[0]
+			catalogID, err := strconv.Atoi(catalogIDStr)
+			if err == nil {
+				return []int{catalogID}
+			}
 
-		// unhandled cases
-		return nil
+			// unhandled cases for /catalog/...
+			return nil
+		}
 	}
 
 	queryParams, err := url.ParseQuery(parsedUrl.RawQuery)
@@ -35,7 +37,7 @@ func extractCatalogIDs(urlStr string) []int {
 		return nil
 	}
 
-	catalogIDs := queryParams["catalog[]"]
+	catalogIDs := queryParams[paramName]
 	lenCatalogIDs := len(catalogIDs)
 	if lenCatalogIDs == 0 {
 		return nil
