@@ -22,6 +22,12 @@ type FilterParams struct {
 	statusIDs   []int
 }
 
+type MiscParams struct {
+	searchText string
+	currency   string
+	order      string
+}
+
 func ParsePrices(urlStr string) PriceParams {
 	priceFrom := extractPrices(urlStr, "price_from")
 	priceTo := extractPrices(urlStr, "price_to")
@@ -47,6 +53,18 @@ func ParseFilterParams(urlStr string) FilterParams {
 		materialIDs: materialIDs,
 		sizeIDs:     sizeIDs,
 		statusIDs:   statusIDs,
+	}
+}
+
+func ParseMiscParams(urlStr string) MiscParams {
+	searchText := extractMiscParams(urlStr, "search_text")
+	currency := extractMiscParams(urlStr, "currency")
+	order := extractMiscParams(urlStr, "order")
+
+	return MiscParams{
+		searchText: searchText,
+		currency:   currency,
+		order:      order,
 	}
 }
 
@@ -127,4 +145,24 @@ func extractIDs(urlStr string, paramName string) []int {
 	}
 
 	return result
+}
+
+func extractMiscParams(urlStr string, paramName string) string {
+	parsedUrl, err := url.Parse(urlStr)
+	if err != nil {
+		log.Printf("Could not parse url %v: %v", urlStr, err)
+		return ""
+	}
+
+	queryParams, err := url.ParseQuery(parsedUrl.RawQuery)
+	if err != nil {
+		return ""
+	}
+
+	values := queryParams[paramName]
+	if len(values) != 1 {
+		return ""
+	}
+
+	return values[0]
 }

@@ -194,3 +194,80 @@ func TestParsePrices(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractMiscParams(t *testing.T) {
+	tests := []struct {
+		name      string
+		urlStr    string
+		paramName string
+		want      string
+	}{
+		{
+			name:      "search_text",
+			urlStr:    "https://www.vinted.sk/catalog?search_text=hello",
+			paramName: "search_text",
+			want:      "hello",
+		},
+		{
+			name:      "currency",
+			urlStr:    "https://www.vinted.sk/catalog?currency=EUR",
+			paramName: "currency",
+			want:      "EUR",
+		},
+		{
+			name:      "order",
+			urlStr:    "https://www.vinted.sk/catalog?order=price_asc",
+			paramName: "order",
+			want:      "price_asc",
+		},
+		{
+			name:      "empty param",
+			urlStr:    "https://www.vinted.sk/catalog?search_text=",
+			paramName: "search_text",
+			want:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractMiscParams(tt.urlStr, tt.paramName); got != tt.want {
+				t.Errorf("extractMiscParams() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseMiscParams(t *testing.T) {
+	tests := []struct {
+		name   string
+		urlStr string
+		want   MiscParams
+	}{
+		{
+			name:   "all parameters",
+			urlStr: "https://www.vinted.sk/catalog?search_text=hello&currency=EUR&order=price_asc",
+			want: MiscParams{
+				searchText: "hello",
+				currency:   "EUR",
+				order:      "price_asc",
+			},
+		},
+		{
+			name:   "no parameters",
+			urlStr: "https://www.vinted.sk/catalog?search_text=",
+			want: MiscParams{
+				searchText: "",
+				currency:   "",
+				order:      "",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ParseMiscParams(tt.urlStr); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseMiscParams() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
