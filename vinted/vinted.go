@@ -68,14 +68,23 @@ func ParseMiscParams(urlStr string) MiscParams {
 	}
 }
 
-func extractPrices(urlStr string, paramName string) float32 {
+func parseQueryParams(urlStr string) (url.Values, error) {
 	parsedUrl, err := url.Parse(urlStr)
 	if err != nil {
 		log.Printf("Could not parse url %v: %v", urlStr, err)
-		return 0.0
+		return nil, err
 	}
 
 	queryParams, err := url.ParseQuery(parsedUrl.RawQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	return queryParams, nil
+}
+
+func extractPrices(urlStr string, paramName string) float32 {
+	queryParams, err := parseQueryParams(urlStr)
 	if err != nil {
 		return 0.0
 	}
@@ -96,17 +105,15 @@ func extractPrices(urlStr string, paramName string) float32 {
 
 // extracts IDs from string like 'catalog[]=79&catalog[]=80' -> [79, 80]
 func extractIDs(urlStr string, paramName string) []int {
-	parsedUrl, err := url.Parse(urlStr)
-	if err != nil {
-		log.Printf("Could not parse url %v: %v", urlStr, err)
-		return nil
-	}
-
 	if paramName == "catalog[]" {
 		// could be url like /catalog/2050-clothing, handle this separately
-		pathSegments := strings.Split(parsedUrl.Path, "/")
-		if len(pathSegments) > 2 {
-			catalogSegment := pathSegments[2]
+		pathSegments := strings.Split(urlStr, "/")
+
+		// https://www.../catalog/2050-clothing -> 5 segments, 4th is catalogID
+		if len(pathSegments) > 4 {
+			catalogSegment := pathSegments[4]
+
+			// "2050-clothing"[0] -> 2050
 			catalogIDStr := strings.Split(catalogSegment, "-")[0]
 			catalogID, err := strconv.Atoi(catalogIDStr)
 			if err == nil {
@@ -118,7 +125,7 @@ func extractIDs(urlStr string, paramName string) []int {
 		}
 	}
 
-	queryParams, err := url.ParseQuery(parsedUrl.RawQuery)
+	queryParams, err := parseQueryParams(urlStr)
 	if err != nil {
 		return nil
 	}
@@ -148,13 +155,7 @@ func extractIDs(urlStr string, paramName string) []int {
 }
 
 func extractMiscParams(urlStr string, paramName string) string {
-	parsedUrl, err := url.Parse(urlStr)
-	if err != nil {
-		log.Printf("Could not parse url %v: %v", urlStr, err)
-		return ""
-	}
-
-	queryParams, err := url.ParseQuery(parsedUrl.RawQuery)
+	queryParams, err := parseQueryParams(urlStr)
 	if err != nil {
 		return ""
 	}
