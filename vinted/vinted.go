@@ -54,5 +54,9 @@ func extractIDs(urlStr string, paramName string) []int {
 		result = append(result, id)
 	}
 
+	if len(result) == 0 {
+		return nil
+	}
+
 	return result
 }

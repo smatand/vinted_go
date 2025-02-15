@@ -42,7 +42,7 @@ func TestExtractCatalogIDs(t *testing.T) {
 			name:      "invalid catalogID",
 			urlStr:    "https://www.vinted.sk/catalog?search_text=&catalog[]=281a",
 			paramName: catalogParam,
-			want:      []int{},
+			want:      nil,
 		},
 		{
 			name:      "invalid query parameters - missing catalog?",
