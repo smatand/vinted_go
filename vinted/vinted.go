@@ -8,63 +8,70 @@ import (
 	"strings"
 )
 
+type Vinted struct {
+	PriceParams
+	FilterParams
+	MiscParams
+}
+
+// todo: consider string type of elems
 type PriceParams struct {
-	priceFrom float32
-	priceTo   float32
+	PriceFrom float32
+	PriceTo   float32
 }
 
 type FilterParams struct {
-	brandIDs    []int
-	catalogIDs  []int
-	colorIDs    []int
-	materialIDs []int
-	sizeIDs     []int
-	statusIDs   []int
+	BrandIDs    []int
+	CatalogIDs  []int
+	ColorIDs    []int
+	MaterialIDs []int
+	SizeIDs     []int
+	StatusIDs   []int
 }
 
 type MiscParams struct {
-	searchText string
-	currency   string
-	order      string
+	SearchText string
+	Currency   string
+	Order      string
 }
 
 func ParsePrices(urlStr string) PriceParams {
-	priceFrom := extractPrices(urlStr, "price_from")
-	priceTo := extractPrices(urlStr, "price_to")
+	PriceFrom := extractPrices(urlStr, "price_from")
+	PriceTo := extractPrices(urlStr, "price_to")
 
 	return PriceParams{
-		priceFrom: priceFrom,
-		priceTo:   priceTo,
+		PriceFrom: PriceFrom,
+		PriceTo:   PriceTo,
 	}
 }
 
 func ParseFilterParams(urlStr string) FilterParams {
-	brandIDs := extractIDs(urlStr, "brand[]")
-	catalogIDs := extractIDs(urlStr, "catalog[]")
-	colorIDs := extractIDs(urlStr, "color[]")
-	materialIDs := extractIDs(urlStr, "material[]")
-	sizeIDs := extractIDs(urlStr, "size[]")
-	statusIDs := extractIDs(urlStr, "status[]")
+	BrandIDs := extractIDs(urlStr, "brand[]")
+	CatalogIDs := extractIDs(urlStr, "catalog[]")
+	ColorIDs := extractIDs(urlStr, "color[]")
+	MaterialIDs := extractIDs(urlStr, "material[]")
+	SizeIDs := extractIDs(urlStr, "size[]")
+	StatusIDs := extractIDs(urlStr, "status[]")
 
 	return FilterParams{
-		brandIDs:    brandIDs,
-		catalogIDs:  catalogIDs,
-		colorIDs:    colorIDs,
-		materialIDs: materialIDs,
-		sizeIDs:     sizeIDs,
-		statusIDs:   statusIDs,
+		BrandIDs:    BrandIDs,
+		CatalogIDs:  CatalogIDs,
+		ColorIDs:    ColorIDs,
+		MaterialIDs: MaterialIDs,
+		SizeIDs:     SizeIDs,
+		StatusIDs:   StatusIDs,
 	}
 }
 
 func ParseMiscParams(urlStr string) MiscParams {
-	searchText := extractMiscParams(urlStr, "search_text")
-	currency := extractMiscParams(urlStr, "currency")
-	order := extractMiscParams(urlStr, "order")
+	SearchText := extractMiscParams(urlStr, "search_text")
+	Currency := extractMiscParams(urlStr, "Currency")
+	Order := extractMiscParams(urlStr, "Order")
 
 	return MiscParams{
-		searchText: searchText,
-		currency:   currency,
-		order:      order,
+		SearchText: SearchText,
+		Currency:   Currency,
+		Order:      Order,
 	}
 }
 
@@ -100,6 +107,11 @@ func extractPrices(urlStr string, paramName string) float32 {
 		return 0.0
 	}
 
+	if result < 0 {
+		log.Printf("Expected positive value of %v, got %v, continuing with 0.0", paramName, result)
+		return 0.0
+	}
+
 	return float32(result)
 }
 
@@ -130,15 +142,15 @@ func extractIDs(urlStr string, paramName string) []int {
 		return nil
 	}
 
-	catalogIDs := queryParams[paramName]
-	lenCatalogIDs := len(catalogIDs)
+	CatalogIDs := queryParams[paramName]
+	lenCatalogIDs := len(CatalogIDs)
 	if lenCatalogIDs == 0 {
 		return nil
 	}
 
 	result := make([]int, 0, lenCatalogIDs)
 	// if there's invalid catalogID like catalog[]=281a, ignore it
-	for _, catalogID := range catalogIDs {
+	for _, catalogID := range CatalogIDs {
 		id, err := strconv.Atoi(catalogID)
 		if err != nil {
 			continue

@@ -89,24 +89,24 @@ func TestParseFilterParams(t *testing.T) {
 			name:   "all parameters",
 			urlStr: "https://www.vinted.sk/catalog?search_text=&brand[]=1&catalog[]=79&catalog[]=80&color[]=1&material[]=1&size[]=1&size[]=2&status[]=1&status[]=2",
 			want: FilterParams{
-				brandIDs:    []int{1},
-				catalogIDs:  []int{79, 80},
-				colorIDs:    []int{1},
-				materialIDs: []int{1},
-				sizeIDs:     []int{1, 2},
-				statusIDs:   []int{1, 2},
+				BrandIDs:    []int{1},
+				CatalogIDs:  []int{79, 80},
+				ColorIDs:    []int{1},
+				MaterialIDs: []int{1},
+				SizeIDs:     []int{1, 2},
+				StatusIDs:   []int{1, 2},
 			},
 		},
 		{
 			name:   "no parameters",
 			urlStr: "https://www.vinted.sk/cataloga?search_text=",
 			want: FilterParams{
-				brandIDs:    nil,
-				catalogIDs:  nil,
-				colorIDs:    nil,
-				materialIDs: nil,
-				sizeIDs:     nil,
-				statusIDs:   nil,
+				BrandIDs:    nil,
+				CatalogIDs:  nil,
+				ColorIDs:    nil,
+				MaterialIDs: nil,
+				SizeIDs:     nil,
+				StatusIDs:   nil,
 			},
 		},
 	}
@@ -151,6 +151,12 @@ func TestExtractPrices(t *testing.T) {
 			paramName: "price_from",
 			want:      0.0,
 		},
+		{
+			name:      "negative price",
+			urlStr:    "https://www.vinted.sk/catalog?search_text=&price_from=-10.0",
+			paramName: "price_from",
+			want:      0.0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -172,16 +178,16 @@ func TestParsePrices(t *testing.T) {
 			name:   "both prices",
 			urlStr: "https://www.vinted.sk/catalog?search_text=&price_from=10.0&price_to=20.0",
 			want: PriceParams{
-				priceFrom: 10.0,
-				priceTo:   20.0,
+				PriceFrom: 10.0,
+				PriceTo:   20.0,
 			},
 		},
 		{
 			name:   "no prices",
 			urlStr: "https://www.vinted.sk/catalog?search_text=",
 			want: PriceParams{
-				priceFrom: 0.0,
-				priceTo:   0.0,
+				PriceFrom: 0.0,
+				PriceTo:   0.0,
 			},
 		},
 	}
@@ -209,15 +215,15 @@ func TestExtractMiscParams(t *testing.T) {
 			want:      "hello",
 		},
 		{
-			name:      "currency",
-			urlStr:    "https://www.vinted.sk/catalog?currency=EUR",
-			paramName: "currency",
+			name:      "Currency",
+			urlStr:    "https://www.vinted.sk/catalog?Currency=EUR",
+			paramName: "Currency",
 			want:      "EUR",
 		},
 		{
-			name:      "order",
-			urlStr:    "https://www.vinted.sk/catalog?order=price_asc",
-			paramName: "order",
+			name:      "Order",
+			urlStr:    "https://www.vinted.sk/catalog?Order=price_asc",
+			paramName: "Order",
 			want:      "price_asc",
 		},
 		{
@@ -245,20 +251,20 @@ func TestParseMiscParams(t *testing.T) {
 	}{
 		{
 			name:   "all parameters",
-			urlStr: "https://www.vinted.sk/catalog?search_text=hello&currency=EUR&order=price_asc",
+			urlStr: "https://www.vinted.sk/catalog?search_text=hello&Currency=EUR&Order=price_asc",
 			want: MiscParams{
-				searchText: "hello",
-				currency:   "EUR",
-				order:      "price_asc",
+				SearchText: "hello",
+				Currency:   "EUR",
+				Order:      "price_asc",
 			},
 		},
 		{
 			name:   "no parameters",
 			urlStr: "https://www.vinted.sk/catalog?search_text=",
 			want: MiscParams{
-				searchText: "",
-				currency:   "",
-				order:      "",
+				SearchText: "",
+				Currency:   "",
+				Order:      "",
 			},
 		},
 	}
