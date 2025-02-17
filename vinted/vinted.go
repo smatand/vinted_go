@@ -65,8 +65,8 @@ func ParseFilterParams(urlStr string) FilterParams {
 
 func ParseMiscParams(urlStr string) MiscParams {
 	SearchText := extractMiscParams(urlStr, "search_text")
-	Currency := extractMiscParams(urlStr, "Currency")
-	Order := extractMiscParams(urlStr, "Order")
+	Currency := extractMiscParams(urlStr, "currency")
+	Order := extractMiscParams(urlStr, "order")
 
 	return MiscParams{
 		SearchText: SearchText,

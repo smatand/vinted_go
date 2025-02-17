@@ -215,15 +215,15 @@ func TestExtractMiscParams(t *testing.T) {
 			want:      "hello",
 		},
 		{
-			name:      "Currency",
-			urlStr:    "https://www.vinted.sk/catalog?Currency=EUR",
-			paramName: "Currency",
+			name:      "currency",
+			urlStr:    "https://www.vinted.sk/catalog?currency=EUR",
+			paramName: "currency",
 			want:      "EUR",
 		},
 		{
-			name:      "Order",
-			urlStr:    "https://www.vinted.sk/catalog?Order=price_asc",
-			paramName: "Order",
+			name:      "order",
+			urlStr:    "https://www.vinted.sk/catalog?order=price_asc",
+			paramName: "order",
 			want:      "price_asc",
 		},
 		{
@@ -251,7 +251,7 @@ func TestParseMiscParams(t *testing.T) {
 	}{
 		{
 			name:   "all parameters",
-			urlStr: "https://www.vinted.sk/catalog?search_text=hello&Currency=EUR&Order=price_asc",
+			urlStr: "https://www.vinted.sk/catalog?search_text=hello&currency=EUR&order=price_asc",
 			want: MiscParams{
 				SearchText: "hello",
 				Currency:   "EUR",
