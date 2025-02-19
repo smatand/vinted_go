@@ -4,6 +4,8 @@ package vintedApi
 
 import (
 	"fmt"
+	"net/http"
+	"io"
 	"strconv"
 
 	"github.com/smatand/vinted_go/vinted"
@@ -15,13 +17,13 @@ const PAGE = "1"
 const ITEMS_PER_PAGE = "16"
 
 // constructs rest api url with default of 1st page and 16 items per page as those specs are not necessary for our purpose
-func ConstructVintedAPIRequest(v vinted.Vinted) string {
+func constructVintedAPIRequest(v vinted.Vinted) string {
 	baseURL := REST_API_ENDPOINT + "items?page=" + PAGE + "&per_page=" + ITEMS_PER_PAGE
 
 	baseURL += constructPriceParams(v.PriceParams)
 	baseURL += constructFilterParams(v.FilterParams)
 	baseURL += constructMiscParams(v.MiscParams)
-	
+
 	return baseURL
 }
 
@@ -39,12 +41,12 @@ func constructPriceParams(p vinted.PriceParams) string {
 
 func constructFilterParams(f vinted.FilterParams) string {
 	toRet := ""
-	toRet += constructParamString("brand[]", f.BrandIDs)
-	toRet += constructParamString("catalog[]", f.CatalogIDs)
-	toRet += constructParamString("color[]", f.ColorIDs)
-	toRet += constructParamString("material[]", f.MaterialIDs)
-	toRet += constructParamString("size[]", f.SizeIDs)
-	toRet += constructParamString("status[]", f.StatusIDs)
+	toRet += constructParamString("brand_ids", f.BrandIDs)
+	toRet += constructParamString("catalog_ids", f.CatalogIDs)
+	toRet += constructParamString("color_ids", f.ColorIDs)
+	toRet += constructParamString("material_ids", f.MaterialIDs)
+	toRet += constructParamString("size_ids", f.SizeIDs)
+	toRet += constructParamString("status_ids", f.StatusIDs)
 
 	return toRet
 }
