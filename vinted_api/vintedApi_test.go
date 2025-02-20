@@ -7,7 +7,7 @@ import (
 )
 
 func TestConstructVintedAPIRequest(t *testing.T) {
-	const baseURL = REST_API_ENDPOINT + "items?page=" + PAGE + "&per_page=" + ITEMS_PER_PAGE
+	const baseURL = restAPIEndpoint + "items?page=" + pageNth + "&per_page=" + itemsPerPage
 	tests := []struct {
 		name   string
 		vinted vinted.Vinted
@@ -49,8 +49,45 @@ func TestConstructVintedAPIRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ConstructVintedAPIRequest(tt.vinted); got != tt.want {
+			if got := constructVintedAPIRequest(tt.vinted); got != tt.want {
 				t.Errorf("ConstructVintedAPIRequest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+
+func TestGetToken(t *testing.T) {
+	tests := []struct {
+		name  string
+		param string
+		want  string
+		err   bool
+	}{
+		{
+			name:  "empty param",
+			param: "",
+			want:  "",
+			err:   true,
+		},
+		{
+			name:  "valid param",
+			param: "access_token_web=ASUDJi982e;Agent 82; lang 8102",
+			want:  "ASUDJi982e",
+			err:   false,
+		},
+		{
+			name:  "two = operators",
+			param: "access_token_web=A*SD12=asdkj;Agent 82; lang 8102",
+			want:  "",
+			err:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, err := getToken(tt.param); got != tt.want || (err != nil) != tt.err {
+				t.Errorf("GetToken() = %v, want %v", got, tt.want)
 			}
 		})
 	}
