@@ -3,7 +3,9 @@
 package vintedApi
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -18,7 +20,7 @@ var retryCountExp int
 // Names of tokens, endpoint and page number
 const accessTokenCookieName = "access_token_web"
 const refreshTokenWebName = "refresh_token_web"
-const restAPIEndpoint = "https://vinted.com/api/v2/catalog/"
+const restAPIEndpoint = "https://vinted.sk/api/v2/catalog/"
 const pageNth = "1"
 const itemsPerPage = "16"
 const maxExponentialWait = 14400 // 4 hours
@@ -28,6 +30,28 @@ const maxExponentialWait = 14400 // 4 hours
 type cookies struct {
 	accessTokenWeb  string
 	refreshTokenWeb string
+}
+
+// Structure of response from Vinted API. The struct contains only the necessary fields.
+type VintedItemsResp struct {
+	Items []struct {
+		ID               int              `json:"id"`
+		Title            string           `json:"title"`
+		Price            VintedPrice      `json:"price"`
+		BrandTitle       string           `json:"brand_title"`
+		Url              string           `json:"url"`
+		VintedConversion VintedConversion `json:"conversion"`
+	} `json:"items"`
+}
+
+// Structure of json price in response from Vinted API.
+type VintedPrice struct {
+	Amount string `json:"amount"`
+}
+
+// Structure which helps to decide the country of the seller.
+type VintedConversion struct {
+	SellerCurrency string `json:"seller_currency"`
 }
 
 // Constructs rest API URL which by default retrieves 1st page with 16 items. The function then adds
@@ -130,7 +154,7 @@ func getToken(cookie string) (string, error) {
 }
 
 // Fetches cookie access_token_web and refresh_token_web from the given host.
-func FetchVintedCookies(host string) (cookies, error) {
+func fetchVintedCookies(host string) (cookies, error) {
 	var cookieData cookies
 	client := http.Client{}
 
@@ -148,7 +172,7 @@ func FetchVintedCookies(host string) (cookies, error) {
 	if resp.StatusCode != http.StatusOK {
 		waitExponential()
 
-		cookieData, err = FetchVintedCookies(host)
+		cookieData, err = fetchVintedCookies(host)
 		if err != nil {
 			return cookies{}, err
 		}
@@ -172,4 +196,49 @@ func FetchVintedCookies(host string) (cookies, error) {
 	}
 
 	return cookieData, nil
+}
+
+// Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
+// The data are json unmarshalled into VintedItemsResp structure.
+func GetVintedItems(v vinted.Vinted) (VintedItemsResp, error) {
+	requestURL := constructVintedAPIRequest(v)
+
+	host := strings.Split(requestURL, "/api")[0]
+
+	// todo: do not fetch it always
+	cookies, err := fetchVintedCookies(host)
+	if err != nil {
+		return VintedItemsResp{}, err
+	}
+
+	req, err := http.NewRequest("GET", requestURL, nil)
+	if err != nil {
+		return VintedItemsResp{}, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.Header.Add("Cookie", accessTokenCookieName+"="+cookies.accessTokenWeb)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return VintedItemsResp{}, fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return VintedItemsResp{}, fmt.Errorf("status code from url %v : %v", requestURL, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return VintedItemsResp{}, fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	var vintedResp VintedItemsResp
+	err = json.Unmarshal(body, &vintedResp)
+	if err != nil {
+		return VintedItemsResp{}, fmt.Errorf("failed to unmarshal response body: %v", err)
+	}
+
+	return vintedResp, nil
 }
