@@ -14,7 +14,6 @@ type Vinted struct {
 	MiscParams
 }
 
-// todo: consider string type of elems
 type PriceParams struct {
 	PriceFrom float32
 	PriceTo   float32
@@ -35,7 +34,13 @@ type MiscParams struct {
 	Order      string
 }
 
-func ParsePrices(urlStr string) PriceParams {
+func (v *Vinted) ParseParams(urlStr string) {
+	v.PriceParams = parsePrices(urlStr)
+	v.FilterParams = parseFilterParams(urlStr)
+	v.MiscParams = parseMiscParams(urlStr)
+}
+
+func parsePrices(urlStr string) PriceParams {
 	PriceFrom := extractPrices(urlStr, "price_from")
 	PriceTo := extractPrices(urlStr, "price_to")
 
@@ -45,13 +50,13 @@ func ParsePrices(urlStr string) PriceParams {
 	}
 }
 
-func ParseFilterParams(urlStr string) FilterParams {
-	BrandIDs := extractIDs(urlStr, "brand[]")
+func parseFilterParams(urlStr string) FilterParams {
+	BrandIDs := extractIDs(urlStr, "brand_ids[]")
 	CatalogIDs := extractIDs(urlStr, "catalog[]")
-	ColorIDs := extractIDs(urlStr, "color[]")
-	MaterialIDs := extractIDs(urlStr, "material[]")
-	SizeIDs := extractIDs(urlStr, "size[]")
-	StatusIDs := extractIDs(urlStr, "status[]")
+	ColorIDs := extractIDs(urlStr, "color_ids[]")
+	MaterialIDs := extractIDs(urlStr, "material_ids[]")
+	SizeIDs := extractIDs(urlStr, "size_ids[]")
+	StatusIDs := extractIDs(urlStr, "status_ids[]")
 
 	return FilterParams{
 		BrandIDs:    BrandIDs,
@@ -63,7 +68,7 @@ func ParseFilterParams(urlStr string) FilterParams {
 	}
 }
 
-func ParseMiscParams(urlStr string) MiscParams {
+func parseMiscParams(urlStr string) MiscParams {
 	SearchText := extractMiscParams(urlStr, "search_text")
 	Currency := extractMiscParams(urlStr, "currency")
 	Order := extractMiscParams(urlStr, "order")

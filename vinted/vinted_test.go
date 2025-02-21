@@ -68,6 +68,12 @@ func TestExtractIDs(t *testing.T) {
 			paramName: "size_ids[]",
 			want:      []int{1, 2},
 		},
+		{
+			name: "real example",
+			urlStr: "https://www.vinted.sk/catalog?search_text=&catalog[]=79&price_from=2.1&price_to=2.5&currency=EUR&color_ids[]=10&color_ids[]=16&color_ids[]=28&size_ids[]=209&size_ids[]=210&brand_ids[]=90804&brand_ids[]=2319&brand_ids[]=255056&brand_ids[]=17161&brand_ids[]=319730&search_id=20007005180&order=newest_first&time=1740144460",
+			paramName: "color_ids[]",
+			want: []int{10, 16, 28},
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,7 +119,7 @@ func TestParseFilterParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ParseFilterParams(tt.urlStr); !reflect.DeepEqual(got, tt.want) {
+			if got := parseFilterParams(tt.urlStr); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseFilterParams() = %v, want %v", got, tt.want)
 			}
 		})
@@ -194,7 +200,7 @@ func TestParsePrices(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ParsePrices(tt.urlStr); !reflect.DeepEqual(got, tt.want) {
+			if got := parsePrices(tt.urlStr); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParsePrices() = %v, want %v", got, tt.want)
 			}
 		})
@@ -271,7 +277,7 @@ func TestParseMiscParams(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ParseMiscParams(tt.urlStr); !reflect.DeepEqual(got, tt.want) {
+			if got := parseMiscParams(tt.urlStr); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseMiscParams() = %v, want %v", got, tt.want)
 			}
 		})
