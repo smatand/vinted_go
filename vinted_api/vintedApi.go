@@ -12,10 +12,10 @@ import (
 	"github.com/smatand/vinted_go/vinted"
 )
 
-// for exponential backoff ~ waitExponential()
-var retryCount int
+// For exponential backoff ~ waitExponential().
+var retryCountExp int
 
-// global rest api url
+// Names of tokens, endpoint and page number
 const accessTokenCookieName = "access_token_web"
 const refreshTokenWebName = "refresh_token_web"
 const restAPIEndpoint = "https://vinted.com/api/v2/catalog/"
@@ -23,12 +23,16 @@ const pageNth = "1"
 const itemsPerPage = "16"
 const maxExponentialWait = 14400 // 4 hours
 
+// Keeps the accessTokenWeb for authentification in API and refreshTokenWeb for refreshing the accessTokenWeb after it expires.
+// todo: the use of refreshTokenWeb is not yet tested/implemented, I might consider deleting it
 type cookies struct {
 	accessTokenWeb  string
 	refreshTokenWeb string
 }
 
-// constructs rest api url with default of 1st page and 16 items per page as those specs are not necessary for our purpose
+// Constructs rest API URL which by default retrieves 1st page with 16 items. The function then adds
+// other parameters to the URL based on the vinted.Vinted structure.
+// The returned value can be pasted to the URL for the API request.
 func constructVintedAPIRequest(v vinted.Vinted) string {
 	baseURL := restAPIEndpoint + "items?page=" + pageNth + "&per_page=" + itemsPerPage
 
@@ -39,8 +43,11 @@ func constructVintedAPIRequest(v vinted.Vinted) string {
 	return baseURL
 }
 
+// Constructs price parameters for the API URL.
+// The returned value can be pasted to the URL for the API request.
 func constructPriceParams(p vinted.PriceParams) string {
-	toRet := ""
+	var toRet string
+
 	if p.PriceFrom != 0.0 {
 		toRet += "&price_from=" + fmt.Sprintf("%.2f", p.PriceFrom)
 	}
@@ -51,6 +58,8 @@ func constructPriceParams(p vinted.PriceParams) string {
 	return toRet
 }
 
+// Constructs filter parameters (cathegorical parameters) for the API URL.
+// The returned value can be pasted to the URL for the API request.
 func constructFilterParams(f vinted.FilterParams) string {
 	toRet := ""
 	toRet += constructParamString("brand_ids", f.BrandIDs)
@@ -63,6 +72,8 @@ func constructFilterParams(f vinted.FilterParams) string {
 	return toRet
 }
 
+// Constructs miscallenous parameters ~ search_text or currency.
+// The returned value can be pasted to the URL for the API request.
 func constructMiscParams(m vinted.MiscParams) string {
 	toRet := ""
 	if m.SearchText != "" {
@@ -78,6 +89,8 @@ func constructMiscParams(m vinted.MiscParams) string {
 	return toRet
 }
 
+// Constructs a string from a given parameter name and a slice of integers.
+// The returned value can be pasted to the URL for the API request.
 func constructParamString(paramName string, ids []int) string {
 	toRet := ""
 	for _, id := range ids {
@@ -87,19 +100,19 @@ func constructParamString(paramName string, ids []int) string {
 	return toRet
 }
 
-// wait exponential time, maximum is 4 hours
+// Waits exponential time, maximum is 4 hours.
 func waitExponential() {
-	delaySecs := 1 << retryCount
+	delaySecs := 1 << retryCountExp
 	if delaySecs > maxExponentialWait {
 		delaySecs = maxExponentialWait
 	}
 
 	time.Sleep(time.Duration(delaySecs) * time.Second)
 
-	retryCount++
+	retryCountExp++
 }
 
-// from a given cookie string, return the value after '=' sign and before the first ';'
+// From a given cookie string, the function returns the value after '=' sign and before the first ';'.
 func getToken(cookie string) (string, error) {
 	if !strings.Contains(cookie, "=") {
 		return "", fmt.Errorf("cookie does not contain = operator")
@@ -116,6 +129,7 @@ func getToken(cookie string) (string, error) {
 	return randomizedBytes, nil
 }
 
+// Fetches cookie access_token_web and refresh_token_web from the given host.
 func FetchVintedCookies(host string) (cookies, error) {
 	var cookieData cookies
 	client := http.Client{}
@@ -154,7 +168,7 @@ func FetchVintedCookies(host string) (cookies, error) {
 			}
 		}
 
-		retryCount = 0
+		retryCountExp = 0
 	}
 
 	return cookieData, nil
