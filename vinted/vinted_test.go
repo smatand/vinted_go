@@ -93,7 +93,7 @@ func TestParseFilterParams(t *testing.T) {
 	}{
 		{
 			name:   "all parameters",
-			urlStr: "https://www.vinted.sk/catalog?search_text=&brand[]=1&catalog[]=79&catalog[]=80&color[]=1&material[]=1&size[]=1&size[]=2&status[]=1&status[]=2",
+			urlStr: "https://www.vinted.sk/catalog?search_text=&brand_ids[]=1&catalog[]=79&catalog[]=80&color_ids[]=1&material_ids[]=1&size_ids[]=1&size_ids[]=2&status_ids[]=1&status_ids[]=2",
 			want: FilterParams{
 				BrandIDs:    []int{1},
 				CatalogIDs:  []int{79, 80},

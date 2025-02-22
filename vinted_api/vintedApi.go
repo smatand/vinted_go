@@ -18,12 +18,14 @@ import (
 var retryCountExp int
 
 // Names of tokens, endpoint and page number
-const accessTokenCookieName = "access_token_web"
-const refreshTokenWebName = "refresh_token_web"
-const restAPIEndpoint = "https://vinted.sk/api/v2/catalog/"
-const pageNth = "1"
-const itemsPerPage = "16"
-const maxExponentialWait = 14400 // 4 hours
+const (
+	accessTokenCookieName = "access_token_web"
+	refreshTokenWebName   = "refresh_token_web"
+	restAPIEndpoint       = "https://vinted.sk/api/v2/catalog/"
+	pageNth               = "1"
+	itemsPerPage          = "16"
+	maxExponentialWait    = 14400 // 4 hours
+)
 
 // Keeps the accessTokenWeb for authentification in API and refreshTokenWeb for refreshing the accessTokenWeb after it expires.
 // todo: the use of refreshTokenWeb is not yet tested/implemented, I might consider deleting it
@@ -35,12 +37,13 @@ type cookies struct {
 // Structure of response from Vinted API. The struct contains only the necessary fields.
 type VintedItemsResp struct {
 	Items []struct {
-		ID               int              `json:"id"`
-		Title            string           `json:"title"`
-		Price            VintedPrice      `json:"price"`
-		BrandTitle       string           `json:"brand_title"`
-		Url              string           `json:"url"`
-		VintedConversion VintedConversion `json:"conversion"`
+		ID         int              `json:"id"`
+		Title      string           `json:"title"`
+		Price      VintedPrice      `json:"price"`
+		BrandTitle string           `json:"brand_title"`
+		Url        string           `json:"url"`
+		Conversion VintedConversion `json:"conversion"`
+		Photo      VintedPhoto      `json:"photo"`
 	} `json:"items"`
 }
 
@@ -52,6 +55,11 @@ type VintedPrice struct {
 // Structure which helps to decide the country of the seller.
 type VintedConversion struct {
 	SellerCurrency string `json:"seller_currency"`
+}
+
+// Structure to hold thumbnail of item photo.
+type VintedPhoto struct {
+	Url string `json:"url"`
 }
 
 // Constructs rest API URL which by default retrieves 1st page with 16 items. The function then adds
@@ -198,12 +206,16 @@ func fetchVintedCookies(host string) (cookies, error) {
 	return cookieData, nil
 }
 
+func extractHost(URL string) string {
+	return strings.Split(URL, "/api")[0]
+}
+
 // Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
 // The data are json unmarshalled into VintedItemsResp structure.
 func GetVintedItems(v vinted.Vinted) (VintedItemsResp, error) {
 	requestURL := constructVintedAPIRequest(v)
 
-	host := strings.Split(requestURL, "/api")[0]
+	host := extractHost(requestURL)
 
 	// todo: do not fetch it always
 	cookies, err := fetchVintedCookies(host)

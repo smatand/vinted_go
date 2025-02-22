@@ -44,7 +44,7 @@ func TestConstructVintedAPIRequest(t *testing.T) {
 					BrandIDs: []int{1, 2, 3},
 				},
 			},
-			want: baseURL + "&brand[]=1&brand[]=2&brand[]=3",
+			want: baseURL + "&brand_ids=1&brand_ids=2&brand_ids=3",
 		},
 	}
 	for _, tt := range tests {
