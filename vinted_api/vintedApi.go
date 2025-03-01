@@ -1,5 +1,3 @@
-// todos: the file should contain functions to convert structure type vinted to vintedapi url
-// currency_seller ~ add to user on DC ability to filter among sellers from poland, czechia and svk
 package vintedApi
 
 import (
@@ -28,7 +26,7 @@ const (
 )
 
 // Keeps the accessTokenWeb for authentification in API and refreshTokenWeb for refreshing the accessTokenWeb after it expires.
-// todo: the use of refreshTokenWeb is not yet tested/implemented, I might consider deleting it
+// todo: the use of refreshTokenWeb is not yet tested/implemented
 type cookies struct {
 	accessTokenWeb  string
 	refreshTokenWeb string
@@ -162,27 +160,28 @@ func getToken(cookie string) (string, error) {
 }
 
 // Fetches cookie access_token_web and refresh_token_web from the given host.
-func fetchVintedCookies(host string) (cookies, error) {
-	var cookieData cookies
-	client := http.Client{}
-
+func fetchVintedCookies(host string) (*cookies, error) {
 	req, err := http.NewRequest("GET", host, nil)
 	if err != nil {
-		return cookies{}, fmt.Errorf("failed to create request: %v", err)
+		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
+
+	client := http.Client{}
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return cookies{}, fmt.Errorf("could not create client: %v", err)
+		return nil, fmt.Errorf("could not create client: %v", err)
 	}
 	defer resp.Body.Close()
+
+	cookieData := &cookies{}
 
 	if resp.StatusCode != http.StatusOK {
 		waitExponential()
 
 		cookieData, err = fetchVintedCookies(host)
 		if err != nil {
-			return cookies{}, err
+			return nil, err
 		}
 	} else {
 		sessionCookies := resp.Header["Set-Cookie"]
@@ -196,7 +195,7 @@ func fetchVintedCookies(host string) (cookies, error) {
 			}
 
 			if err != nil {
-				return cookies{}, fmt.Errorf("could not get token: %v", err)
+				return nil, fmt.Errorf("could not get token: %v", err)
 			}
 		}
 
@@ -212,7 +211,7 @@ func extractHost(URL string) string {
 
 // Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
 // The data are json unmarshalled into VintedItemsResp structure.
-func GetVintedItems(v vinted.Vinted) (VintedItemsResp, error) {
+func GetVintedItems(v vinted.Vinted) (*VintedItemsResp, error) {
 	requestURL := constructVintedAPIRequest(v)
 
 	host := extractHost(requestURL)
@@ -220,12 +219,12 @@ func GetVintedItems(v vinted.Vinted) (VintedItemsResp, error) {
 	// todo: do not fetch it always
 	cookies, err := fetchVintedCookies(host)
 	if err != nil {
-		return VintedItemsResp{}, err
+		return nil, err
 	}
 
 	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to create request: %v", err)
+		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
 	req.Header.Add("Cookie", accessTokenCookieName+"="+cookies.accessTokenWeb)
@@ -233,23 +232,23 @@ func GetVintedItems(v vinted.Vinted) (VintedItemsResp, error) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to make request: %v", err)
+		return nil, fmt.Errorf("failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return VintedItemsResp{}, fmt.Errorf("status code from url %v : %v", requestURL, resp.StatusCode)
+		return nil, fmt.Errorf("status code from url %v : %v", requestURL, resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to read response body: %v", err)
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	var vintedResp VintedItemsResp
+	vintedResp := &VintedItemsResp{}
 	err = json.Unmarshal(body, &vintedResp)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to unmarshal response body: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response body: %v", err)
 	}
 
 	return vintedResp, nil

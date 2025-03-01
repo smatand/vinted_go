@@ -1,0 +1,157 @@
+package discordBot
+
+import (
+	"fmt"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/smatand/vinted_go/vinted"
+)
+
+type Currency string
+
+const (
+	EUR Currency = "EUR"
+	PLN Currency = "PLN"
+	CZK Currency = "CZK"
+
+	defaultCurr = EUR
+	timeout     = time.Minute
+)
+
+type Bot struct {
+	ses       *discordgo.Session
+	channelID string
+}
+
+func newBot(token string) (*Bot, error) {
+	ses, err := discordgo.New("Bot " + token)
+	if err != nil {
+		return nil, fmt.Errorf("wrong parameters for bot: %v", err)
+	}
+
+	return &Bot{ses, "1200879123220942889"}, nil
+}
+
+func (b *Bot) createCurrSelection() (*discordgo.Message, error) {
+	// Button components in one row
+	components := []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.Button{
+					Label:    string(EUR),
+					Style:    discordgo.PrimaryButton,
+					CustomID: string(EUR),
+				},
+				discordgo.Button{
+					Label:    string(CZK),
+					Style:    discordgo.PrimaryButton,
+					CustomID: string(CZK),
+				},
+				discordgo.Button{
+					Label:    string(PLN),
+					Style:    discordgo.PrimaryButton,
+					CustomID: string(PLN),
+				},
+			},
+		},
+	}
+
+	// Send message with currency selection buttons
+	return b.ses.ChannelMessageSendComplex(b.channelID, &discordgo.MessageSend{
+		Content:    "Please select your preferred currency (defaults to EUR in 1 minute):",
+		Components: components,
+	})
+}
+
+func (b *Bot) waitForCurrencySelection(msg *discordgo.Message) (Currency, error) {
+	respChan := make(chan Currency, 1)
+
+	handler := func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.Message.ID != msg.ID {
+			return
+		}
+
+		// Get the selected currency from button interaction
+		if i.Type == discordgo.InteractionMessageComponent {
+			data := i.MessageComponentData()
+			respChan <- Currency(data.CustomID)
+
+			// Acknowledge the interaction
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseUpdateMessage,
+				Data: &discordgo.InteractionResponseData{
+					Content: fmt.Sprintf("Selected currency: %s", data.CustomID),
+				},
+			})
+		}
+	}
+
+	// Add the interaction handler
+	b.ses.AddHandler(handler)
+
+	// Wait for either user selection or timeout
+	select {
+	case currency := <-respChan:
+		return currency, nil
+	case <-time.After(timeout):
+		// Clean up the message on timeout
+		b.ses.ChannelMessageDelete(b.channelID, msg.ID)
+		return defaultCurr, nil
+	}
+}
+
+func Run(botToken string, vinted vinted.Vinted) error {
+	bot, err := newBot(botToken)
+	if err != nil {
+		return err
+	}
+
+	bot.ses.Open()
+	defer bot.ses.Close()
+
+	msg, err := bot.createCurrSelection()
+	if err != nil {
+		return fmt.Errorf("failed to send msg about currency selection: %v", err)
+	}
+
+	currency, err := bot.waitForCurrencySelection(msg)
+	if err != nil {
+		return fmt.Errorf("failed to get currency selection: %v", err)
+	}
+
+	fmt.Printf("Selected currency: %s\n", currency)
+
+	//	bot.ses.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
+	//		if m.Author.ID == s.State.User.ID {
+	//			return
+	//		}
+	//
+	//		vintedData, err := vintedApi.GetVintedItems(vinted)
+	//		if err != nil {
+	//			log.Fatalf("failed to get vinted items: %v", err)
+	//		}
+	//
+	//			log.Fatalf("failed to send message: %v", err)
+	//		}
+	//	})
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	<-c
+
+	return nil
+}
+
+//		embed := NewEmbed().
+//			SetTitle(vintedData.Items[0].Title).
+//			SetDescription(vintedData.Items[0].BrandTitle).
+//			SetURL(vintedData.Items[0].Url).
+//			SetThumbnail(vintedData.Items[0].Photo.Url).
+//			AddField("Price", vintedData.Items[0].Price.Amount)
+//
+//		id := "1200879123220942889"
+//		_, err = bot.ses.ChannelMessageSendEmbed(id, embed.MessageEmbed)
+//		if err != nil {

@@ -1,4 +1,4 @@
-// vinted.go source file contains abstraction over the Vinted API parameters
+// vinted.go file contains abstraction over the Vinted client URL parameters.
 package vinted
 
 import (
@@ -102,8 +102,10 @@ func extractPrices(urlStr string, paramName string) float32 {
 	}
 
 	numericValues := queryParams[paramName]
-	if len(numericValues) != 1 {
+	if len(numericValues) > 1 {
 		log.Printf("Expected only one value of %v, got %v", paramName, numericValues)
+		return 0.0
+	} else if len(numericValues) == 0 {
 		return 0.0
 	}
 

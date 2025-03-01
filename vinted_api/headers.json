@@ -1,0 +1,15 @@
+ {
+	"user-agent":                "mozilla/5.0 (iphone; cpu iphone os 17_5_1 like mac os x) applewebkit/605.1.15 (khtml, like gecko) version/17.5 mobile/15e148 safari/604.",
+	"accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+	"accept-encoding":           "gzip, deflate, br",
+	"accept-language":           "en-us,en;q=0.5",
+	"connection":                "keep-alive",
+	"upgrade-insecure-requests": "1",
+	"dnt":                       "1",
+	"sec-fetch-dest":            "document",
+	"sec-fetch-mode":            "navigate",
+	"sec-fetch-site":            "none",
+	"sec-fetch-user":            "?1",
+	"origin":                    "https://www.vinted.sk",
+	"referer":                   "https://www.vinted.sk"
+ }
