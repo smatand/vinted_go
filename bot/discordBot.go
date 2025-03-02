@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/smatand/vinted_go/db"
 )
 
 var (
@@ -52,8 +53,7 @@ var (
 )
 
 func handleWatcher(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	switch i.Type {
-	case discordgo.InteractionApplicationCommand:
+	if i.Type == discordgo.InteractionApplicationCommand {
 		data := i.ApplicationCommandData()
 
 		var url string
@@ -61,10 +61,7 @@ func handleWatcher(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		for _, opt := range data.Options {
 			switch opt.Name {
 			case "url":
-				if opt.Value != "" {
-					url = opt.StringValue()
-				}
-
+				url = opt.StringValue()
 			case "currency_eur":
 				if opt.BoolValue() {
 					selectedCurrencies = append(selectedCurrencies, "EUR")
@@ -84,21 +81,33 @@ func handleWatcher(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			selectedCurrencies = []string{"EUR", "CZK", "PLN"}
 		}
 
-		currenciesStr := strings.Join(selectedCurrencies, ", ")
-
 		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: fmt.Sprintf(
-					"you entered %s and currencies %v to watch", url, currenciesStr,
+					"you entered %s and currencies %v to watch", url, selectedCurrencies,
 				),
+				Flags: discordgo.MessageFlagsSuppressEmbeds,
 			},
 		})
 		if err != nil {
 			log.Printf("error responding to interaction: %v", err)
 		}
 
-		log.Printf("user entered URL %s with currencies %v", url, currenciesStr)
+		addWatcherToDb(url, selectedCurrencies)
+	}
+}
+
+func addWatcherToDb(url string, currencies []string) {
+	dbWatcherURL := db.WatcherURL{
+		URL:             url,
+		Seller_currency: currencies,
+	}
+	err := db.AppendWatcherURL("", dbWatcherURL)
+	if err != nil {
+		log.Printf("error when adding watcher to db has occurred: %v", err)
+	} else {
+		log.Printf("added URL %s with currencies %v to db", url, currencies)
 	}
 }
 
