@@ -5,107 +5,145 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"time"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type MessageConfig struct {
-	Title        string
-	Description  string
-	URL          string
-	ThumbnailURL string
-	Color        int
-	Fields       []EmbedField
-}
-
-type EmbedField struct {
-	Name   string
-	Value  string
-	Inline bool
-}
-
-func SendMessageEmbed(s *discordgo.Session, channelID string, config MessageConfig) error {
-	if s == nil {
-		return fmt.Errorf("discord session cannot be nil")
-	}
-
-	emb := &discordgo.MessageEmbed{
-		Title:       config.Title,
-		Description: config.Description,
-		URL:         config.URL,
-		Color:       config.Color,
-		Timestamp:   time.Now().Format(time.RFC3339),
-		Footer: &discordgo.MessageEmbedFooter{
-			Text: "vinted",
-		},
-	}
-
-	if config.ThumbnailURL != "" {
-		emb.Thumbnail = &discordgo.MessageEmbedThumbnail{
-			URL: config.ThumbnailURL,
-		}
-	}
-
-	if len(config.Fields) > 0 {
-		emb.Fields = make([]*discordgo.MessageEmbedField, len(config.Fields))
-		for i, field := range config.Fields {
-			emb.Fields[i] = &discordgo.MessageEmbedField{
-				Name:   field.Name,
-				Value:  field.Value,
-				Inline: field.Inline,
-			}
-		}
-	}
-
-	_, err := s.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
-		Embed: emb,
-	})
-
-	return err
-}
-
-func newMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
-	if m.Author.ID == s.State.User.ID {
-		return
-	}
-
-	config := MessageConfig{
-		Title:        "item details",
-		Description:  "product description",
-		URL:          "https://example.com/ex",
-		ThumbnailURL: "https://icons.veryicon.com/png/o/miscellaneous/construction-of-fengying-website-in-xian/no-copy.png",
-		Color:        0x00ff00,
-		Fields: []EmbedField{
-			{
-				Name:   "price",
-				Value:  "$42.99",
-				Inline: true,
+var (
+	commands = []*discordgo.ApplicationCommand{
+		{
+			Name:        "watch",
+			Description: "Insert Vinted's URL to watch items. You may choose which currencies to include.",
+			Type:        discordgo.ChatApplicationCommand,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:         "url",
+					Description:  "Insert url of vinted page, e. g. https://www.vinted.cz/catalog/1206-outerwear",
+					Type:         discordgo.ApplicationCommandOptionString,
+					Required:     true,
+					Autocomplete: false,
+				},
+				{
+					Name:        "currency_eur",
+					Description: "Include items in EUR",
+					Type:        discordgo.ApplicationCommandOptionBoolean,
+					Required:    false,
+				},
+				{
+					Name:        "currency_czk",
+					Description: "Include items in CZK",
+					Type:        discordgo.ApplicationCommandOptionBoolean,
+					Required:    false,
+				},
+				{
+					Name:        "currency_pln",
+					Description: "Include items in PLN",
+					Type:        discordgo.ApplicationCommandOptionBoolean,
+					Required:    false,
+				},
 			},
 		},
 	}
 
-	log.Printf("sending message to channel %v for %v", m.ChannelID, m.Author.Username)
-	if err := SendMessageEmbed(s, m.ChannelID, config); err != nil {
-		log.Printf("error sending message: %v", err)
-		return
+	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		"watch": handleWatcher,
 	}
+)
 
+func handleWatcher(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	switch i.Type {
+	case discordgo.InteractionApplicationCommand:
+		data := i.ApplicationCommandData()
+
+		var url string
+		var selectedCurrencies []string
+		for _, opt := range data.Options {
+			switch opt.Name {
+			case "url":
+				if opt.Value != "" {
+					url = opt.StringValue()
+				}
+
+			case "currency_eur":
+				if opt.BoolValue() {
+					selectedCurrencies = append(selectedCurrencies, "EUR")
+				}
+			case "currency_czk":
+				if opt.BoolValue() {
+					selectedCurrencies = append(selectedCurrencies, "CZK")
+				}
+			case "currency_pln":
+				if opt.BoolValue() {
+					selectedCurrencies = append(selectedCurrencies, "PLN")
+				}
+			}
+		}
+
+		if len(selectedCurrencies) == 0 {
+			selectedCurrencies = []string{"EUR", "CZK", "PLN"}
+		}
+
+		currenciesStr := strings.Join(selectedCurrencies, ", ")
+
+		err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Content: fmt.Sprintf(
+					"you entered %s and currencies %v to watch", url, currenciesStr,
+				),
+			},
+		})
+		if err != nil {
+			log.Printf("error responding to interaction: %v", err)
+		}
+
+		log.Printf("user entered URL %s with currencies %v", url, currenciesStr)
+	}
 }
 
-func Run(botToken string) {
-	var err error
-	bot, err := discordgo.New("Bot " + botToken)
-	if err != nil {
-		log.Fatalf("wrong parameters for bot: %v", err)
+func Run(botToken string) error {
+	GuildID := ""
+
+	if botToken != "" && !strings.HasPrefix(botToken, "Bot ") {
+		botToken = "Bot " + botToken
+	} else {
+		log.Fatalf("invalid bot token: %s", botToken)
 	}
 
-	bot.AddHandler(newMessage)
+	bot, err := discordgo.New(botToken)
+	if err != nil {
+		return err
+	}
 
-	bot.Open()
+	bot.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) { log.Println("Bot is up!") })
+	bot.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+			h(s, i)
+		}
+	})
+
+	if err := bot.Open(); err != nil {
+		return fmt.Errorf("error opening connection: %v", err)
+	}
 	defer bot.Close()
+
+	createdCommands, err := bot.ApplicationCommandBulkOverwrite(bot.State.User.ID, GuildID, commands)
+
+	if err != nil {
+		log.Fatalf("cannot register commands: %v", err)
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
+
+	for _, cmd := range createdCommands {
+		err := bot.ApplicationCommandDelete(bot.State.User.ID, GuildID, cmd.ID)
+		if err != nil {
+			log.Printf("cannot delete %q command: %v", cmd.Name, err)
+		}
+	}
+
+	return nil
 }
