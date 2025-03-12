@@ -1,5 +1,3 @@
-// todos: the file should contain functions to convert structure type vinted to vintedapi url
-// currency_seller ~ add to user on DC ability to filter among sellers from poland, czechia and svk
 package vintedApi
 
 import (
@@ -20,31 +18,34 @@ var retryCountExp int
 // Names of tokens, endpoint and page number
 const (
 	accessTokenCookieName = "access_token_web"
-	refreshTokenWebName   = "refresh_token_web"
+	RefreshTokenWebName   = "refresh_token_web"
 	restAPIEndpoint       = "https://vinted.sk/api/v2/catalog/"
 	pageNth               = "1"
 	itemsPerPage          = "16"
 	maxExponentialWait    = 14400 // 4 hours
+	cookiesFilePath       = "cookies.json"
 )
 
-// Keeps the accessTokenWeb for authentification in API and refreshTokenWeb for refreshing the accessTokenWeb after it expires.
-// todo: the use of refreshTokenWeb is not yet tested/implemented, I might consider deleting it
+// Keeps the AccessTokenWeb for authentification in API and RefreshTokenWeb for refreshing the AccessTokenWeb after it expires.
+// todo: the use of RefreshTokenWeb is not yet tested/implemented
 type cookies struct {
-	accessTokenWeb  string
-	refreshTokenWeb string
+	AccessTokenWeb  string `json:"access_token_web"`
+	RefreshTokenWeb string `json:"refresh_token_web"`
+}
+
+type VintedItemsResp struct {
+	Items []VintedItemResp `json:"items"`
 }
 
 // Structure of response from Vinted API. The struct contains only the necessary fields.
-type VintedItemsResp struct {
-	Items []struct {
-		ID         int              `json:"id"`
-		Title      string           `json:"title"`
-		Price      VintedPrice      `json:"price"`
-		BrandTitle string           `json:"brand_title"`
-		Url        string           `json:"url"`
-		Conversion VintedConversion `json:"conversion"`
-		Photo      VintedPhoto      `json:"photo"`
-	} `json:"items"`
+type VintedItemResp struct {
+	ID         int              `json:"id"`
+	Title      string           `json:"title"`
+	Price      VintedPrice      `json:"price"`
+	BrandTitle string           `json:"brand_title"`
+	Url        string           `json:"url"`
+	Conversion VintedConversion `json:"conversion"`
+	Photo      VintedPhoto      `json:"photo"`
 }
 
 // Structure of json price in response from Vinted API.
@@ -67,6 +68,8 @@ type VintedPhoto struct {
 // The returned value can be pasted to the URL for the API request.
 func constructVintedAPIRequest(v vinted.Vinted) string {
 	baseURL := restAPIEndpoint + "items?page=" + pageNth + "&per_page=" + itemsPerPage
+	currTimestamp := time.Now().Unix()
+	baseURL += "&time=" + strconv.FormatInt(currTimestamp, 10)
 
 	baseURL += constructPriceParams(v.PriceParams)
 	baseURL += constructFilterParams(v.FilterParams)
@@ -94,12 +97,12 @@ func constructPriceParams(p vinted.PriceParams) string {
 // The returned value can be pasted to the URL for the API request.
 func constructFilterParams(f vinted.FilterParams) string {
 	toRet := ""
-	toRet += constructParamString("brand_ids", f.BrandIDs)
-	toRet += constructParamString("catalog_ids", f.CatalogIDs)
-	toRet += constructParamString("color_ids", f.ColorIDs)
-	toRet += constructParamString("material_ids", f.MaterialIDs)
-	toRet += constructParamString("size_ids", f.SizeIDs)
-	toRet += constructParamString("status_ids", f.StatusIDs)
+	toRet += constructParamString("brand_ids[]", f.BrandIDs)
+	toRet += constructParamString("catalog_ids[]", f.CatalogIDs)
+	toRet += constructParamString("color_ids[]", f.ColorIDs)
+	toRet += constructParamString("material_ids[]", f.MaterialIDs)
+	toRet += constructParamString("size_ids[]", f.SizeIDs)
+	toRet += constructParamString("status_ids[]", f.StatusIDs)
 
 	return toRet
 }
@@ -144,66 +147,51 @@ func waitExponential() {
 	retryCountExp++
 }
 
-// From a given cookie string, the function returns the value after '=' sign and before the first ';'.
-func getToken(cookie string) (string, error) {
-	if !strings.Contains(cookie, "=") {
-		return "", fmt.Errorf("cookie does not contain = operator")
-	}
-
-	token := strings.SplitN(cookie, "=", 2)[1]
-	randomizedBytes := strings.SplitN(token, ";", 2)[0]
-
-	// let's return error if there's another = operator in token
-	if strings.Contains(randomizedBytes, "=") {
-		return "", fmt.Errorf("token contains more than 1 = operator")
-	}
-
-	return randomizedBytes, nil
-}
-
 // Fetches cookie access_token_web and refresh_token_web from the given host.
-func fetchVintedCookies(host string) (cookies, error) {
-	var cookieData cookies
+func fetchVintedCookies(host string) (*cookies, error) {
+	cookieData := &cookies{}
+
 	client := http.Client{}
+	maxRetries := 3
 
-	req, err := http.NewRequest("GET", host, nil)
-	if err != nil {
-		return cookies{}, fmt.Errorf("failed to create request: %v", err)
-	}
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			waitExponential()
+		}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return cookies{}, fmt.Errorf("could not create client: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		waitExponential()
-
-		cookieData, err = fetchVintedCookies(host)
+		req, err := http.NewRequest("GET", host, nil)
 		if err != nil {
-			return cookies{}, err
-		}
-	} else {
-		sessionCookies := resp.Header["Set-Cookie"]
-		for _, cookie := range sessionCookies {
-			if strings.Contains(cookie, accessTokenCookieName+"=") {
-				// access_token_web contains some randomized data + basic info about Domain, Max-Age divided by semicolons, we only want the 1st one
-				cookieData.accessTokenWeb, err = getToken(cookie)
-			} else if strings.Contains(cookie, refreshTokenWebName+"=") {
-				// same goes for refresh_token_web, the bytes before first ; are the token
-				cookieData.refreshTokenWeb, err = getToken(cookie)
-			}
-
-			if err != nil {
-				return cookies{}, fmt.Errorf("could not get token: %v", err)
-			}
+			return nil, fmt.Errorf("failed to create request: %v", err)
 		}
 
-		retryCountExp = 0
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("could not create client: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			continue
+		}
+
+		for _, cookie := range resp.Cookies() {
+			switch cookie.Name {
+			case accessTokenCookieName:
+				cookieData.AccessTokenWeb = cookie.Value
+			case RefreshTokenWebName:
+				cookieData.RefreshTokenWeb = cookie.Value
+			}
+		}
+
+		// Reset the exponentialWait() counter when both cookies are retrieved
+		if cookieData.AccessTokenWeb != "" && cookieData.RefreshTokenWeb != "" {
+			retryCountExp = 0
+
+			return cookieData, nil
+		}
 	}
 
-	return cookieData, nil
+	return nil, fmt.Errorf("could not retrieve cookies")
 }
 
 func extractHost(URL string) string {
@@ -212,7 +200,7 @@ func extractHost(URL string) string {
 
 // Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
 // The data are json unmarshalled into VintedItemsResp structure.
-func GetVintedItems(v vinted.Vinted) (VintedItemsResp, error) {
+func GetVintedItems(v vinted.Vinted) (*VintedItemsResp, error) {
 	requestURL := constructVintedAPIRequest(v)
 
 	host := extractHost(requestURL)
@@ -220,36 +208,36 @@ func GetVintedItems(v vinted.Vinted) (VintedItemsResp, error) {
 	// todo: do not fetch it always
 	cookies, err := fetchVintedCookies(host)
 	if err != nil {
-		return VintedItemsResp{}, err
+		return nil, err
 	}
 
 	req, err := http.NewRequest("GET", requestURL, nil)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to create request: %v", err)
+		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
-	req.Header.Add("Cookie", accessTokenCookieName+"="+cookies.accessTokenWeb)
+	req.Header.Add("Cookie", accessTokenCookieName+"="+cookies.AccessTokenWeb)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to make request: %v", err)
+		return nil, fmt.Errorf("failed to make request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return VintedItemsResp{}, fmt.Errorf("status code from url %v : %v", requestURL, resp.StatusCode)
+		return nil, fmt.Errorf("status code from url %v : %v", requestURL, resp.StatusCode)
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to read response body: %v", err)
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	var vintedResp VintedItemsResp
+	vintedResp := &VintedItemsResp{}
 	err = json.Unmarshal(body, &vintedResp)
 	if err != nil {
-		return VintedItemsResp{}, fmt.Errorf("failed to unmarshal response body: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response body: %v", err)
 	}
 
 	return vintedResp, nil
