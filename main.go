@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	"github.com/smatand/vinted_go/bot"
+	discordBot "github.com/smatand/vinted_go/bot"
 )
 
 func main() {
@@ -14,7 +14,8 @@ func main() {
 		log.Fatalf("Error loading the .env file: %s", err)
 	}
 
-	discordToken := os.Getenv("DISCORD_TOKEN")
+	token := os.Getenv("DISCORD_TOKEN")
+	guildID := os.Getenv("GUILD_ID")
 
-	discordBot.Run(discordToken)
+	discordBot.Run(token, guildID)
 }

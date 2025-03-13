@@ -205,7 +205,6 @@ func GetVintedItems(v vinted.Vinted) (*VintedItemsResp, error) {
 
 	host := extractHost(requestURL)
 
-	// todo: do not fetch it always
 	cookies, err := fetchVintedCookies(host)
 	if err != nil {
 		return nil, err

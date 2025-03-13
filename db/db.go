@@ -3,30 +3,31 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 )
 
 // JSON structure containing the URL of the watcher and the list of the seller_currency.
 type WatcherURL struct {
 	URL             string   `json:"url"`
-	Seller_currency []string `json:"seller_currency"`
+	SellerCurrency []string `json:"seller_currency"`
 }
 
 // JSON structure containing the id of the item.
 type ItemID struct {
-	Id string `json:"id"`
+	Id int `json:"id"`
 }
 
 // Loads teh content of the file filePath, appends the new items to the unmarshaled content and updates the file filePath.
 // Returns error if reading, marshalling or writing fails.
 // Default filePath is "watchers.json"
-func AppendWatcherURL(filePath string, watcher WatcherURL) error {
+func AppendWatcher(filePath string, watcher WatcherURL) error {
 	if filePath == "" {
 		filePath = "watchers.json"
 	}
 
 	// load the content of json file
-	watchers, err := ReadWatcherURLs(filePath)
+	watchers, err := ReadWatchers(filePath)
 	if err != nil {
 		return fmt.Errorf("error reading watcherURL: %v", err)
 	}
@@ -67,7 +68,7 @@ func readBytes(filePath string, data *[]byte) error {
 
 // Reads the content of the given file filePath and returns the slice of WatcherURLs.
 // Returns nil if file is empty/not found.
-func ReadWatcherURLs(filePath string) ([]WatcherURL, error) {
+func ReadWatchers(filePath string) ([]WatcherURL, error) {
 	var watchers []WatcherURL
 
 	var bytes []byte
@@ -111,6 +112,22 @@ func AppendItemIDs(filePath string, items []ItemID) error {
 	}
 
 	return nil
+}
+
+func ItemExists(item ItemID) bool {
+	ids, err := ReadItemIDs("items.json")
+	if err != nil {
+		log.Printf("error reading itemIDs: %v", err)
+		return false
+	}
+
+	for _, id := range ids {
+		if id.Id == item.Id {
+			return true
+		}
+	}
+
+	return false
 }
 
 // Reads the content of the given file filePath and returns the slice of ItemID.

@@ -8,7 +8,9 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/smatand/vinted_go/agent"
 	"github.com/smatand/vinted_go/db"
+	vintedApi "github.com/smatand/vinted_go/vinted_api"
 )
 
 var (
@@ -100,10 +102,10 @@ func handleWatcher(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 func addWatcherToDb(url string, currencies []string) {
 	dbWatcherURL := db.WatcherURL{
-		URL:             url,
-		Seller_currency: currencies,
+		URL:            url,
+		SellerCurrency: currencies,
 	}
-	err := db.AppendWatcherURL("", dbWatcherURL)
+	err := db.AppendWatcher("", dbWatcherURL)
 	if err != nil {
 		log.Printf("error when adding watcher to db has occurred: %v", err)
 	} else {
@@ -111,9 +113,30 @@ func addWatcherToDb(url string, currencies []string) {
 	}
 }
 
-func Run(botToken string) error {
-	GuildID := ""
+func handleNewItems(newItemsChan <-chan []vintedApi.VintedItemResp, s *discordgo.Session, guildId string) {
+	for newItems := range newItemsChan {
+		if len(newItems) > 0 {
 
+			for item := range newItems {
+				embed := NewEmbed().
+					SetTitle(newItems[item].Title).
+					SetDescription(newItems[item].BrandTitle).
+					AddField("Price", newItems[item].Price.Amount).
+					AddField("URL", newItems[item].Url).
+					SetImage(newItems[item].Photo.Url).
+					MessageEmbed
+
+				_, err := s.ChannelMessageSendEmbed(guildId, embed)
+				if err != nil {
+					log.Printf("error sending message: %v", err)
+				}
+
+			}
+		}
+	}
+}
+
+func Run(botToken string, GuildID string) error {
 	if botToken != "" && !strings.HasPrefix(botToken, "Bot ") {
 		botToken = "Bot " + botToken
 	} else {
@@ -137,18 +160,22 @@ func Run(botToken string) error {
 	}
 	defer bot.Close()
 
-	createdCommands, err := bot.ApplicationCommandBulkOverwrite(bot.State.User.ID, GuildID, commands)
+	createdCommands, err := bot.ApplicationCommandBulkOverwrite(bot.State.User.ID, "", commands)
 
 	if err != nil {
 		log.Fatalf("cannot register commands: %v", err)
 	}
+
+	newItemsChan := make(chan []vintedApi.VintedItemResp, 48)
+	go handleNewItems(newItemsChan, bot, GuildID)
+	go agent.Run(newItemsChan)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	<-c
 
 	for _, cmd := range createdCommands {
-		err := bot.ApplicationCommandDelete(bot.State.User.ID, GuildID, cmd.ID)
+		err := bot.ApplicationCommandDelete(bot.State.User.ID, "", cmd.ID)
 		if err != nil {
 			log.Printf("cannot delete %q command: %v", cmd.Name, err)
 		}
