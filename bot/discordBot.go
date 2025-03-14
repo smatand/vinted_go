@@ -10,6 +10,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/smatand/vinted_go/agent"
 	"github.com/smatand/vinted_go/db"
+	"github.com/smatand/vinted_go/vinted"
 	vintedApi "github.com/smatand/vinted_go/vinted_api"
 )
 
@@ -96,7 +97,11 @@ func handleWatcher(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			log.Printf("error responding to interaction: %v", err)
 		}
 
-		addWatcherToDb(url, selectedCurrencies)
+		var parsedParams vinted.Vinted
+		parsedParams.ParseParams(url)
+		apiUrl := vintedApi.ConstructVintedAPIRequest(parsedParams)
+
+		addWatcherToDb(apiUrl, selectedCurrencies)
 	}
 }
 
@@ -148,7 +153,9 @@ func Run(botToken string, GuildID string) error {
 		return err
 	}
 
-	bot.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) { log.Println("Bot is up!") })
+	bot.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+		log.Println("Bot is up!")
+	})
 	bot.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
 			h(s, i)

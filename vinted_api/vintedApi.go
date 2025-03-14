@@ -66,10 +66,8 @@ type VintedPhoto struct {
 // Constructs rest API URL which by default retrieves 1st page with 16 items. The function then adds
 // other parameters to the URL based on the vinted.Vinted structure.
 // The returned value can be pasted to the URL for the API request.
-func constructVintedAPIRequest(v vinted.Vinted) string {
+func ConstructVintedAPIRequest(v vinted.Vinted) string {
 	baseURL := restAPIEndpoint + "items?page=" + pageNth + "&per_page=" + itemsPerPage
-	currTimestamp := time.Now().Unix()
-	baseURL += "&time=" + strconv.FormatInt(currTimestamp, 10)
 
 	baseURL += constructPriceParams(v.PriceParams)
 	baseURL += constructFilterParams(v.FilterParams)
@@ -200,9 +198,7 @@ func extractHost(URL string) string {
 
 // Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
 // The data are json unmarshalled into VintedItemsResp structure.
-func GetVintedItems(v vinted.Vinted) (*VintedItemsResp, error) {
-	requestURL := constructVintedAPIRequest(v)
-
+func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
 	host := extractHost(requestURL)
 
 	cookies, err := fetchVintedCookies(host)

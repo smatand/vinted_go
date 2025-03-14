@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/smatand/vinted_go/db"
-	"github.com/smatand/vinted_go/vinted"
 	vintedApi "github.com/smatand/vinted_go/vinted_api"
 )
 
@@ -46,10 +45,7 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 
 		// Parse user given url and then fethc item from the parsed API url
 		for _, url := range watcher {
-			var parsedParams vinted.Vinted
-			parsedParams.ParseParams(url.URL)
-
-			items, err := vintedApi.GetVintedItems(parsedParams)
+			items, err := vintedApi.GetVintedItems(url.URL)
 			if err != nil {
 				log.Printf("error while getting items: %v", err)
 			}
