@@ -17,7 +17,7 @@ import (
 const (
 	accessTokenCookieName = "access_token_web"
 	RefreshTokenWebName   = "refresh_token_web"
-	restAPIEndpoint       = "https://vinted.sk/api/v2/catalog/"
+	restAPIEndpoint       = "https://www.vinted.sk/api/v2/catalog/"
 	pageNth               = "1"
 	itemsPerPage          = "16"
 	maxExponentialWait    = 60 * 30 // 30 mins

@@ -74,6 +74,9 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 
 			// Pass the details of items to discordBot
 			newItemsChan <- uniqueItems
+
+			// To prevent API overload
+			time.Sleep(1 * time.Second)
 		}
 
 		// Do the operation in infinite loop only once per minute
