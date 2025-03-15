@@ -2,6 +2,7 @@ package agent
 
 import (
 	"log"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 
 const (
 	watchersFilePath = "watchers.json"
+	itemsFilePath    = "items.json"
+	maxRandWait      = 120
 )
 
 func itemContainsCurrency(item vintedApi.VintedItemResp, currencies []string) bool {
@@ -30,9 +33,6 @@ func itemContainsCurrency(item vintedApi.VintedItemResp, currencies []string) bo
 }
 
 func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-
 	for {
 		watcher, err := db.ReadWatchers(watchersFilePath)
 		if err != nil {
@@ -70,16 +70,19 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 
 				uniqueItems = append(uniqueItems, item)
 			}
-			db.AppendItemIDs("items.json", itemIDs)
+			db.AppendItemIDs(itemsFilePath, itemIDs)
 
 			// Pass the details of items to discordBot
 			newItemsChan <- uniqueItems
 
 			// To prevent API overload
-			time.Sleep(4 * time.Second)
+			randomWait := time.Duration(rand.Intn(10)+1) * time.Second
+
+			time.Sleep(randomWait)
 		}
 
-		// Do the operation in infinite loop only once per minute
-		<-ticker.C
+		// And again, another wait
+		randomInterval := time.Duration(rand.Intn(maxRandWait)+maxRandWait) * time.Second
+		time.Sleep(randomInterval)
 	}
 }
