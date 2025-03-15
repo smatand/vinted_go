@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,9 +13,6 @@ import (
 	"github.com/smatand/vinted_go/vinted"
 )
 
-// For exponential backoff ~ waitExponential().
-var retryCountExp int
-
 // Names of tokens, endpoint and page number
 const (
 	accessTokenCookieName = "access_token_web"
@@ -22,8 +20,16 @@ const (
 	restAPIEndpoint       = "https://vinted.sk/api/v2/catalog/"
 	pageNth               = "1"
 	itemsPerPage          = "16"
-	maxExponentialWait    = 14400 // 4 hours
+	maxExponentialWait    = 60 * 30 // 30 mins
 	cookiesFilePath       = "cookies.json"
+	cookieTTL             = 30 * time.Minute
+)
+
+var (
+	cookieCache  = make(map[string]*cookies)
+	cookieExpiry = make(map[string]time.Time)
+	// For exponential backoff ~ waitExponential().
+	retryCountExp = 0
 )
 
 // Keeps the AccessTokenWeb for authentification in API and RefreshTokenWeb for refreshing the AccessTokenWeb after it expires.
@@ -133,7 +139,7 @@ func constructParamString(paramName string, ids []int) string {
 	return toRet
 }
 
-// Waits exponential time, maximum is 4 hours.
+// Waits exponential time, maximum is 30 mins.
 func waitExponential() {
 	delaySecs := 1 << retryCountExp
 	if delaySecs > maxExponentialWait {
@@ -147,6 +153,15 @@ func waitExponential() {
 
 // Fetches cookie access_token_web and refresh_token_web from the given host.
 func fetchVintedCookies(host string) (*cookies, error) {
+	// CHeck if stored cookies exist
+	cachedCookie, exists := cookieCache[host]
+	expiry, hasExpiry := cookieExpiry[host]
+
+	// If the timeout is not exceeded and they exist, return them
+	if exists && hasExpiry && time.Now().Before(expiry) {
+		return cachedCookie, nil
+	}
+
 	cookieData := &cookies{}
 
 	client := http.Client{}
@@ -185,6 +200,11 @@ func fetchVintedCookies(host string) (*cookies, error) {
 		if cookieData.AccessTokenWeb != "" && cookieData.RefreshTokenWeb != "" {
 			retryCountExp = 0
 
+			cookieCache[host] = cookieData
+			cookieExpiry[host] = time.Now().Add(cookieTTL)
+
+			log.Printf("cookies for %v are stored in cache for %v mins", host, cookieTTL.Minutes())
+
 			return cookieData, nil
 		}
 	}
@@ -211,6 +231,7 @@ func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
+	// Append accessTokenWeb cookie to the request
 	req.Header.Add("Cookie", accessTokenCookieName+"="+cookies.AccessTokenWeb)
 
 	client := &http.Client{}

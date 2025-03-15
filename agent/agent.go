@@ -76,6 +76,7 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 			newItemsChan <- uniqueItems
 		}
 
+		// Do the operation in infinite loop only once per minute
 		<-ticker.C
 	}
 }
