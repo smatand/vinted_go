@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +32,7 @@ var (
 	cookieExpiry = make(map[string]time.Time)
 	// For exponential backoff ~ waitExponential().
 	retryCountExp = 0
+	headersMap    map[string]string
 )
 
 // Keeps the AccessTokenWeb for authentification in API and RefreshTokenWeb for refreshing the AccessTokenWeb after it expires.
@@ -177,6 +180,8 @@ func fetchVintedCookies(host string) (*cookies, error) {
 			return nil, fmt.Errorf("failed to create request: %v", err)
 		}
 
+		applyHeaders(req)
+
 		resp, err := client.Do(req)
 		if err != nil {
 			return nil, fmt.Errorf("could not create client: %v", err)
@@ -216,9 +221,38 @@ func extractHost(URL string) string {
 	return strings.Split(URL, "/api")[0]
 }
 
+func loadHeaders(filePath string) (map[string]string, error) {
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading headers file: %v", err)
+	}
+
+	var headersSlice []map[string]string
+	err = json.Unmarshal(file, &headersSlice)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshalling headers: %v", err)
+	}
+
+	headers := headersSlice[rand.Intn(len(headersSlice))]
+
+	return headers, nil
+}
+
+func applyHeaders(req *http.Request) {
+	for key, value := range headersMap {
+		req.Header.Set(key, value)
+	}
+}
+
 // Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
 // The data are json unmarshalled into VintedItemsResp structure.
 func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
+	var err error
+	headersMap, err = loadHeaders("headers.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to load headers: %v", err)
+	}
+
 	host := extractHost(requestURL)
 
 	cookies, err := fetchVintedCookies(host)
@@ -233,6 +267,7 @@ func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
 
 	// Append accessTokenWeb cookie to the request
 	req.Header.Add("Cookie", accessTokenCookieName+"="+cookies.AccessTokenWeb)
+	applyHeaders(req)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -253,7 +288,7 @@ func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
 	vintedResp := &VintedItemsResp{}
 	err = json.Unmarshal(body, &vintedResp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response body: %v", err)
+		log.Printf("failed to unmarshal response body: %v", err)
 	}
 
 	return vintedResp, nil

@@ -136,6 +136,7 @@ func handleNewItems(newItemsChan <-chan []vintedApi.VintedItemResp, s *discordgo
 					log.Printf("error sending message: %v", err)
 				}
 
+				log.Printf("new item posted to DC: %s", newItems[item].Title)
 			}
 		}
 	}

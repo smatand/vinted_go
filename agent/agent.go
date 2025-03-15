@@ -47,7 +47,7 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 		for _, url := range watcher {
 			items, err := vintedApi.GetVintedItems(url.URL)
 			if err != nil {
-				log.Printf("error while getting items: %v", err)
+				log.Fatalf("error while getting items: %v", err)
 			}
 
 			var itemIDs []db.ItemID
@@ -76,7 +76,7 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 			newItemsChan <- uniqueItems
 
 			// To prevent API overload
-			time.Sleep(1 * time.Second)
+			time.Sleep(4 * time.Second)
 		}
 
 		// Do the operation in infinite loop only once per minute
