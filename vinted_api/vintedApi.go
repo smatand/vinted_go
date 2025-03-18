@@ -24,7 +24,7 @@ const (
 	itemsPerPage          = "16"
 	maxExponentialWait    = 60 * 30 // 30 mins
 	cookiesFilePath       = "cookies.json"
-	cookieTTL             = 30 * time.Minute
+	cookieTTL             = 1 * time.Hour
 )
 
 var (
@@ -288,7 +288,7 @@ func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
 	vintedResp := &VintedItemsResp{}
 	err = json.Unmarshal(body, &vintedResp)
 	if err != nil {
-		log.Printf("failed to unmarshal response body: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response body: %v", err)
 	}
 
 	return vintedResp, nil

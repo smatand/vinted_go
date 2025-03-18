@@ -47,7 +47,7 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 		for _, url := range watcher {
 			items, err := vintedApi.GetVintedItems(url.URL)
 			if err != nil {
-				log.Fatalf("error while getting items: %v", err)
+				log.Printf("error while getting items: %v", err)
 			}
 
 			var itemIDs []db.ItemID

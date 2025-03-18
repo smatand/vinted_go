@@ -1,0 +1,5 @@
+.env_example
+README.md
+.git/
+.gitignore
+.vscode/
