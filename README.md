@@ -33,3 +33,8 @@ To enter the container's shell:
 
 ### Authors
 smatand
+
+
+### todo
+deletion of items
+db instead of json
