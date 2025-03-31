@@ -48,6 +48,8 @@ func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
 			items, err := vintedApi.GetVintedItems(url.URL)
 			if err != nil {
 				log.Printf("error while getting items: %v", err)
+
+				break
 			}
 
 			var itemIDs []db.ItemID
