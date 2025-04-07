@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/smatand/vinted_go/db"
-	vintedApi "github.com/smatand/vinted_go/vinted_api"
+	vintedApi "github.com/smatand/vinted_go/vintedApi"
 )
 
 const (

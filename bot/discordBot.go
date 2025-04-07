@@ -11,7 +11,7 @@ import (
 	"github.com/smatand/vinted_go/agent"
 	"github.com/smatand/vinted_go/db"
 	"github.com/smatand/vinted_go/vinted"
-	vintedApi "github.com/smatand/vinted_go/vinted_api"
+	vintedApi "github.com/smatand/vinted_go/vintedApi"
 )
 
 var (
