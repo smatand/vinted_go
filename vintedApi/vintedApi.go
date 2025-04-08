@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sony/gobreaker/v2"
+
 	"github.com/smatand/vinted_go/vinted"
 )
 
@@ -24,6 +26,7 @@ const (
 	itemsPerPage          = "16"
 	maxExponentialWait    = 60 * 30 // 30 mins
 	cookiesFilePath       = "cookies.json"
+	headersFilePath       = "headers.json"
 	cookieTTL             = 1 * time.Hour
 )
 
@@ -33,6 +36,7 @@ var (
 	// For exponential backoff ~ waitExponential().
 	retryCountExp = 0
 	headersMap    map[string]string
+	cb            *gobreaker.CircuitBreaker[*VintedItemsResp]
 )
 
 // Keeps the AccessTokenWeb for authentification in API and RefreshTokenWeb for refreshing the AccessTokenWeb after it expires.
@@ -70,6 +74,19 @@ type VintedConversion struct {
 // Structure to hold thumbnail of item photo.
 type VintedPhoto struct {
 	Url string `json:"url"`
+}
+
+// Inits gobreaker circuit breaker for handling the API requests and the failures if they occur.
+func init() {
+	var st gobreaker.Settings
+	st.Name = "HTTP GET"
+	st.ReadyToTrip = func(counts gobreaker.Counts) bool {
+		failureRatio := float64(counts.TotalFailures) / float64(counts.Requests)
+		return counts.Requests >= 3 && failureRatio >= 0.6
+	}
+
+	// Set the default settings.
+	cb = gobreaker.NewCircuitBreaker[*VintedItemsResp](st)
 }
 
 // Constructs rest API URL which by default retrieves 1st page with 16 items. The function then adds
@@ -217,11 +234,13 @@ func fetchVintedCookies(host string) (*cookies, error) {
 	return nil, fmt.Errorf("could not retrieve cookies")
 }
 
+// Extracts all the content before "/api" from the given URL.
 func extractHost(URL string) string {
 	return strings.Split(URL, "/api")[0]
 }
 
-func loadHeaders(filePath string) (map[string]string, error) {
+// Loads the randomly picked headers from filePath.json into a global variable headersMap.
+func loadRandomHeaders(filePath string) (map[string]string, error) {
 	file, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading headers file: %v", err)
@@ -238,49 +257,15 @@ func loadHeaders(filePath string) (map[string]string, error) {
 	return headers, nil
 }
 
+// Loads the headers from the headersMap into the request.
 func applyHeaders(req *http.Request) {
 	for key, value := range headersMap {
 		req.Header.Set(key, value)
 	}
 }
 
-// Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
-// The data are json unmarshalled into VintedItemsResp structure.
-func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
-	var err error
-	headersMap, err = loadHeaders("headers.json")
-	if err != nil {
-		return nil, fmt.Errorf("failed to load headers: %v", err)
-	}
-
-	host := extractHost(requestURL)
-
-	cookies, err := fetchVintedCookies(host)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", requestURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %v", err)
-	}
-
-	// Append accessTokenWeb cookie to the request
-	req.Header.Add("Cookie", accessTokenCookieName+"="+cookies.AccessTokenWeb)
-	applyHeaders(req)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to make request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status code from url %v : %v", requestURL, resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
+func parseVintedItemsResp(bodyData *io.ReadCloser) (*VintedItemsResp, error) {
+	body, err := io.ReadAll(*bodyData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
@@ -292,4 +277,72 @@ func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
 	}
 
 	return vintedResp, nil
+}
+
+func prepareVintedRequest(requestURL string) (*http.Request, error) {
+	var err error
+	headersMap, err = loadRandomHeaders(headersFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load headers: %v", err)
+	}
+
+	//  "https://vinted.sk/api/v2/..." -> "https://vinted.sk".
+	host := extractHost(requestURL)
+	cookies, err := fetchVintedCookies(host)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", requestURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	req.AddCookie(&http.Cookie{
+		Name:  accessTokenCookieName,
+		Value: cookies.AccessTokenWeb,
+	})
+
+	// From global var headersMap to req type.
+	applyHeaders(req)
+
+	return req, nil
+}
+
+// Fetches the actual items from the Vinted API and returns the VintedItemsResp structure or nil in case of error.
+func fetchVintedItems(req *http.Request) (*VintedItemsResp, error) {
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code: %v", resp.StatusCode)
+	}
+
+	return parseVintedItemsResp(&resp.Body)
+} // The resp.Body is deferred.
+
+// Retrieves items from Vinted API based on the given parameters from vinted.Vinted structure
+// The data are json unmarshalled into VintedItemsResp structure.
+func GetVintedItems(requestURL string) (*VintedItemsResp, error) {
+	req, err := prepareVintedRequest(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare request: %v", err)
+	}
+
+	result, err := cb.Execute(func() (*VintedItemsResp, error) {
+		return fetchVintedItems(req)
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("circuit breaker error: %v", err)
+	}
+
+	return result, nil
 }
