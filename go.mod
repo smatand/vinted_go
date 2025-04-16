@@ -5,6 +5,7 @@ go 1.24
 require (
 	github.com/bwmarrin/discordgo v0.28.1
 	github.com/joho/godotenv v1.5.1
+	github.com/sony/gobreaker/v2 v2.1.0
 )
 
 require (
@@ -15,7 +16,6 @@ require (
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/redis/go-redis/v9 v9.7.0 // indirect
-	github.com/sony/gobreaker/v2 v2.1.0 // indirect
-	golang.org/x/crypto v0.0.0-20210421170649-83a5a9bb288b // indirect
-	golang.org/x/sys v0.0.0-20201119102817-f84b799fce68 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 )
