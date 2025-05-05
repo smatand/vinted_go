@@ -176,7 +176,8 @@ func Run(botToken string, GuildID string) error {
 
 	newItemsChan := make(chan []vintedApi.VintedItemResp, 48)
 	go handleNewItems(newItemsChan, bot, GuildID)
-	go agent.Run(newItemsChan)
+	agent := agent.NewVintedAgent("", "")
+	go agent.Start(newItemsChan)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

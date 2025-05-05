@@ -20,7 +20,6 @@ type ItemID struct {
 
 // Loads teh content of the file filePath, appends the new items to the unmarshaled content and updates the file filePath.
 // Returns error if reading, marshalling or writing fails.
-// Default filePath is "watchers.json"
 func AppendWatcher(filePath string, watcher WatcherURL) error {
 	if filePath == "" {
 		filePath = "watchers.json"

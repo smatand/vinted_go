@@ -11,14 +11,119 @@ import (
 )
 
 const (
-	watchersFilePath = "watchers.json"
-	itemsFilePath    = "items.json"
-	maxRandWait      = 120
+	DefaultWatchersFilePath = "watchers.json"
+	DefaultItemsFilePath    = "items.json"
+	DefaultMaxRandWait      = 120
+	DefaultMaxRandWaitBetweenURLs = 10
 )
+
+type VintedAgent struct {
+	WatchersFilePath string
+	ItemsFilePath string
+	MaxWaitLoops int
+	MaxWaitURLs int
+}
+
+func NewVintedAgent(watchersFilePath, itemsFilePath string) * VintedAgent {
+	if watchersFilePath == "" {
+		watchersFilePath = DefaultWatchersFilePath	
+	}
+
+	if itemsFilePath == "" {
+		itemsFilePath = DefaultItemsFilePath
+	}
+	return &VintedAgent{
+		WatchersFilePath: watchersFilePath,
+		ItemsFilePath: itemsFilePath,
+		MaxWaitLoops: DefaultMaxRandWait,
+		MaxWaitURLs: DefaultMaxRandWaitBetweenURLs,
+	}
+}
+
+func (ag * VintedAgent) Start(newItemsChan chan<- []vintedApi.VintedItemResp) {
+	for {
+		ag.checkWatchers(newItemsChan)
+
+		ag.randomSleep(ag.MaxWaitLoops)
+	}
+}
+
+func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []vintedApi.VintedItemResp) {
+	watcherURLs, err := db.ReadWatchers(ag.WatchersFilePath)	
+	if err != nil {
+		log.Fatalf("error while reading watcher urls: %v", err)
+	}
+
+	if len(watcherURLs) == 0 {
+		log.Println("no watcher to watch")
+	}
+
+	// Parse user given url and then fetch the item from the parsed API url.
+	for _, watcherURL := range watcherURLs {
+		ag.processWatcher(watcherURL, newItemsChan)
+
+		// We don't want to fetch all watcher URLs at once, rather make pauses between each url fetch.
+		ag.randomSleep(ag.MaxWaitURLs)
+	}
+}
+
+func (ag * VintedAgent) processWatcher(watcher db.WatcherURL, newItemsChan chan<- []vintedApi.VintedItemResp) {
+	items, err := vintedApi.GetVintedItems(watcher.URL)
+	if err != nil {
+		log.Printf("error while getting items: %v", err)
+
+		return
+	}
+
+	uniqueItems := ag.filterItems(items, watcher)
+
+	// Pass the details of items to discordBot.
+	if len(uniqueItems) > 0 {
+		newItemsChan <- uniqueItems
+	}
+}
+
+func (ag * VintedAgent) filterItems(items *vintedApi.VintedItemsResp, watcher db.WatcherURL) []vintedApi.VintedItemResp {
+	var itemIDs []db.ItemID
+	var uniqueItems []vintedApi.VintedItemResp
+
+	for _, item := range items.Items {
+		itemID := db.ItemID{Id: item.ID}
+
+		// Skip items already in the db.
+		if db.ItemExists(itemID) {
+			continue
+		}
+
+		// Track the ID regardless of the currency.
+		itemIDs = append(itemIDs, itemID)
+
+		// The item is sold by other seller's nationality than the user wants, skip.
+		// But keep the record of it so it won't have to be processed later again.
+		if !itemContainsCurrency(item, watcher.SellerCurrency) {
+			continue
+		}
+
+		uniqueItems = append(uniqueItems, item)
+	}
+
+	// Only update if new items have been found.
+	if len(itemIDs) > 0 {
+		db.AppendItemIDs(ag.ItemsFilePath, itemIDs)
+	}
+
+	return uniqueItems
+}
+
+func (ag * VintedAgent) randomSleep(max int) {
+	randomWait := time.Duration(rand.Intn(max) + max)
+	time.Sleep(randomWait)
+}
+
 
 func itemContainsCurrency(item vintedApi.VintedItemResp, currencies []string) bool {
 	itemCurrency := item.Conversion.SellerCurrency
-	// If the item's currency is empty, probably it is from same country as user
+	// If the item's currency is empty, probably it is from same country as user.
 	if itemCurrency == "" {
 		return true
 	}
@@ -30,61 +135,4 @@ func itemContainsCurrency(item vintedApi.VintedItemResp, currencies []string) bo
 	}
 
 	return false
-}
-
-func Run(newItemsChan chan<- []vintedApi.VintedItemResp) {
-	for {
-		watcher, err := db.ReadWatchers(watchersFilePath)
-		if err != nil {
-			log.Fatalf("error while getting urls to watch: %v", err)
-		}
-
-		if watcher == nil {
-			log.Println("no watcher to watch")
-		}
-
-		// Parse user given url and then fethc item from the parsed API url
-		for _, url := range watcher {
-			items, err := vintedApi.GetVintedItems(url.URL)
-			if err != nil {
-				log.Printf("error while getting items: %v", err)
-
-				break
-			}
-
-			var itemIDs []db.ItemID
-			var uniqueItems []vintedApi.VintedItemResp
-			for _, item := range items.Items {
-				itemID := db.ItemID{Id: item.ID}
-
-				// The item was already added to the db, skip
-				if db.ItemExists(itemID) {
-					continue
-				}
-
-				itemIDs = append(itemIDs, itemID)
-
-				// The item is sold by other seller's nationality than the user wants, skip
-				// But keep the record of it so it won't have to be processed later again
-				if !itemContainsCurrency(item, url.SellerCurrency) {
-					continue
-				}
-
-				uniqueItems = append(uniqueItems, item)
-			}
-			db.AppendItemIDs(itemsFilePath, itemIDs)
-
-			// Pass the details of items to discordBot
-			newItemsChan <- uniqueItems
-
-			// To prevent API overload
-			randomWait := time.Duration(rand.Intn(10)+1) * time.Second
-
-			time.Sleep(randomWait)
-		}
-
-		// And again, another wait
-		randomInterval := time.Duration(rand.Intn(maxRandWait)+maxRandWait) * time.Second
-		time.Sleep(randomInterval)
-	}
 }
