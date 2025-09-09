@@ -49,7 +49,7 @@ func (ag * VintedAgent) Start(newItemsChan chan<- []vintedApi.VintedItemResp) {
 }
 
 func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []vintedApi.VintedItemResp) {
-	watcherURLs, err := db.ReadWatchers(ag.WatchersFilePath)	
+	watcherURLs, err := db.ReadWatchers()
 	if err != nil {
 		log.Fatalf("error while reading watcher urls: %v", err)
 	}
@@ -109,7 +109,7 @@ func (ag * VintedAgent) filterItems(items *vintedApi.VintedItemsResp, watcher db
 
 	// Only update if new items have been found.
 	if len(itemIDs) > 0 {
-		db.AppendItemIDs(ag.ItemsFilePath, itemIDs)
+		db.AppendItemIDs(itemIDs)
 	}
 
 	return uniqueItems

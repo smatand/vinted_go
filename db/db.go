@@ -1,15 +1,17 @@
 package db
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"log"
-	"os"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 // JSON structure containing the URL of the watcher and the list of the seller_currency.
 type WatcherURL struct {
-	URL             string   `json:"url"`
+	URL            string   `json:"url"`
 	SellerCurrency []string `json:"seller_currency"`
 }
 
@@ -18,134 +20,66 @@ type ItemID struct {
 	Id int `json:"id"`
 }
 
-// Loads teh content of the file filePath, appends the new items to the unmarshaled content and updates the file filePath.
-// Returns error if reading, marshalling or writing fails.
-func AppendWatcher(filePath string, watcher WatcherURL) error {
-	if filePath == "" {
-		filePath = "watchers.json"
-	}
+var client *mongo.Client
+var db *mongo.Database
+var watchersCollection *mongo.Collection
+var itemsCollection *mongo.Collection
 
-	// load the content of json file
-	watchers, err := ReadWatchers(filePath)
+func InitDB(uri string) error {
+	var err error
+	client, err = mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		return fmt.Errorf("error reading watcherURL: %v", err)
+		return err
 	}
-
-	// append the new watcher
-	watchers = append(watchers, watcher)
-
-	updatedContent, err := json.MarshalIndent(watchers, "", "  ")
-	if err != nil {
-		return fmt.Errorf("error marshalling watchers: %v", err)
-	}
-
-	if err := os.WriteFile(filePath, updatedContent, 0644); err != nil {
-		return fmt.Errorf("error writing file while updating the json content: %v", err)
-	}
-
+	db = client.Database("vinted_go")
+	watchersCollection = db.Collection("watchers")
+	itemsCollection = db.Collection("items")
 	return nil
 }
 
-// Function changes the content of data parameter. Returns nil if file is empty/not found.
-func readBytes(filePath string, data *[]byte) error {
-	bytes, err := os.ReadFile(filePath)
-	if os.IsNotExist(err) {
-		return nil
-	}
-
-	if err != nil {
-		return fmt.Errorf("error reading file: %v", err)
-	}
-
-	if len(bytes) == 0 {
-		return nil
-	}
-
-	*data = bytes
-	return nil
+func AppendWatcher(watcher WatcherURL) error {
+	_, err := watchersCollection.InsertOne(context.TODO(), watcher)
+	return err
 }
 
-// Reads the content of the given file filePath and returns the slice of WatcherURLs.
-// Returns nil if file is empty/not found.
-func ReadWatchers(filePath string) ([]WatcherURL, error) {
+func ReadWatchers() ([]WatcherURL, error) {
 	var watchers []WatcherURL
-
-	var bytes []byte
-	if err := readBytes(filePath, &bytes); err != nil {
-		return nil, fmt.Errorf("error reading %v: %v", filePath, err)
+	cursor, err := watchersCollection.Find(context.TODO(), bson.M{})
+	if err != nil {
+		return nil, err
 	}
-
-	if bytes == nil {
-		return watchers, nil
+	if err = cursor.All(context.TODO(), &watchers); err != nil {
+		return nil, err
 	}
-
-	if err := json.Unmarshal(bytes, &watchers); err != nil {
-		return nil, fmt.Errorf("error unmarshalling: %v", err)
-	}
-
 	return watchers, nil
 }
 
-// Loads the content of the fiile filePath, appends the new items to the unmarshaled content and updates the file.
-// Returns error if reading, marshalling or writing fails.
-// Default filePath is "items.json".
-func AppendItemIDs(filePath string, items []ItemID) error {
-	if filePath == "" {
-		filePath = "items.json"
+func AppendItemIDs(items []ItemID) error {
+	var docs []interface{}
+	for _, item := range items {
+		docs = append(docs, item)
 	}
-
-	itemsToWrite, err := ReadItemIDs(filePath)
-	if err != nil {
-		return fmt.Errorf("error reading itemIDs: %v", err)
-	}
-
-	itemsToWrite = append(itemsToWrite, items...)
-
-	updatedContent, err := json.Marshal(itemsToWrite)
-	if err != nil {
-		return fmt.Errorf("error marshalling items: %v", err)
-	}
-
-	if err := os.WriteFile(filePath, updatedContent, 0644); err != nil {
-		return fmt.Errorf("error writing file while updating the json content: %v", err)
-	}
-
-	return nil
+	_, err := itemsCollection.InsertMany(context.TODO(), docs)
+	return err
 }
 
 func ItemExists(item ItemID) bool {
-	ids, err := ReadItemIDs("items.json")
+	count, err := itemsCollection.CountDocuments(context.TODO(), bson.M{"id": item.Id})
 	if err != nil {
-		log.Printf("error reading itemIDs: %v", err)
+		log.Printf("error checking item existence: %v", err)
 		return false
 	}
-
-	for _, id := range ids {
-		if id.Id == item.Id {
-			return true
-		}
-	}
-
-	return false
+	return count > 0
 }
 
-// Reads the content of the given file filePath and returns the slice of ItemID.
-// Returns nil if file is empty/not found.
-func ReadItemIDs(filePath string) ([]ItemID, error) {
+func ReadItemIDs() ([]ItemID, error) {
 	var items []ItemID
-
-	var bytes []byte
-	if err := readBytes(filePath, &bytes); err != nil {
-		return nil, fmt.Errorf("error reading %v: %v", filePath, err)
+	cursor, err := itemsCollection.Find(context.TODO(), bson.M{})
+	if err != nil {
+		return nil, err
 	}
-
-	if bytes == nil {
-		return nil, nil
+	if err = cursor.All(context.TODO(), &items); err != nil {
+		return nil, err
 	}
-
-	if err := json.Unmarshal(bytes, &items); err != nil {
-		return nil, fmt.Errorf("error unmarshalling: %v", err)
-	}
-
 	return items, nil
 }

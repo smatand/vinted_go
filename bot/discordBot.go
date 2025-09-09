@@ -110,7 +110,7 @@ func addWatcherToDb(url string, currencies []string) {
 		URL:            url,
 		SellerCurrency: currencies,
 	}
-	err := db.AppendWatcher("", dbWatcherURL)
+	err := db.AppendWatcher(dbWatcherURL)
 	if err != nil {
 		log.Printf("error when adding watcher to db has occurred: %v", err)
 	} else {
