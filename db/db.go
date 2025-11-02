@@ -25,15 +25,21 @@ var db *mongo.Database
 var watchersCollection *mongo.Collection
 var itemsCollection *mongo.Collection
 
+const (
+	vintedDbName = "vinted_go"
+	watchersCollectionName = "watchers"
+	itemsCollectionName = "items"
+)
+
 func InitDB(uri string) error {
 	var err error
 	client, err = mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
 		return err
 	}
-	db = client.Database("vinted_go")
-	watchersCollection = db.Collection("watchers")
-	itemsCollection = db.Collection("items")
+	db = client.Database(vintedDbName)
+	watchersCollection = db.Collection(watchersCollectionName)
+	itemsCollection = db.Collection(itemsCollectionName)
 	return nil
 }
 
@@ -63,8 +69,12 @@ func AppendItemIDs(items []ItemID) error {
 	return err
 }
 
+const (
+	idField = "id"
+)
+
 func ItemExists(item ItemID) bool {
-	count, err := itemsCollection.CountDocuments(context.TODO(), bson.M{"id": item.Id})
+	count, err := itemsCollection.CountDocuments(context.TODO(), bson.M{idField: item.Id})
 	if err != nil {
 		log.Printf("error checking item existence: %v", err)
 		return false
