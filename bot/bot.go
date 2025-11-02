@@ -1,4 +1,4 @@
-package discordBot
+package bot
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 	"github.com/smatand/vinted_go/agent"
 	"github.com/smatand/vinted_go/db"
 	"github.com/smatand/vinted_go/vinted"
-	vintedApi "github.com/smatand/vinted_go/vintedApi"
+ 	"github.com/smatand/vinted_go/vintedapi"
 )
 
 var (
@@ -99,7 +99,7 @@ func handleWatcher(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 		var parsedParams vinted.Vinted
 		parsedParams.ParseParams(url)
-		apiUrl := vintedApi.ConstructVintedAPIRequest(parsedParams)
+		apiUrl := vintedapi.ConstructVintedAPIRequest(parsedParams)
 
 		addWatcherToDb(apiUrl, selectedCurrencies)
 	}
@@ -118,7 +118,7 @@ func addWatcherToDb(url string, currencies []string) {
 	}
 }
 
-func handleNewItems(newItemsChan <-chan []vintedApi.VintedItemResp, s *discordgo.Session, guildId string) {
+func handleNewItems(newItemsChan <-chan []vintedapi.VintedItemResp, s *discordgo.Session, guildId string) {
 	for newItems := range newItemsChan {
 		if len(newItems) > 0 {
 
@@ -174,7 +174,7 @@ func Run(botToken string, GuildID string) error {
 		log.Fatalf("cannot register commands: %v", err)
 	}
 
-	newItemsChan := make(chan []vintedApi.VintedItemResp, 48)
+	newItemsChan := make(chan []vintedapi.VintedItemResp, 48)
 	go handleNewItems(newItemsChan, bot, GuildID)
 	agent := agent.NewVintedAgent("", "")
 	go agent.Start(newItemsChan)

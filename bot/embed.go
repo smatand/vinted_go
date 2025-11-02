@@ -1,6 +1,6 @@
 // The embed.go source has been copied from https://gist.github.com/Necroforger/8b0b70b1a69fa7828b8ad6387ebb3835
 // Author of the source code is Necroforger, I've just added import statement on lines 5:7
-package discordBot
+package bot
 
 import (
 	"github.com/bwmarrin/discordgo"

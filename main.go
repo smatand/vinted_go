@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/joho/godotenv"
-	discordBot "github.com/smatand/vinted_go/bot"
+ 	"github.com/smatand/vinted_go/bot"
 	"github.com/smatand/vinted_go/db"
 )
 
@@ -26,5 +26,5 @@ func main() {
 	token := os.Getenv("DISCORD_TOKEN")
 	guildID := os.Getenv("GUILD_ID")
 
-	discordBot.Run(token, guildID)
+	bot.Run(token, guildID)
 }

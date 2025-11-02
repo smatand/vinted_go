@@ -1,4 +1,4 @@
-package vintedApi
+package vintedapi
 
 import (
 	"encoding/json"

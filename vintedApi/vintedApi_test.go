@@ -1,4 +1,4 @@
-package vintedApi
+package vintedapi_test
 
 import (
 	"testing"
