@@ -6,27 +6,27 @@ import (
 	"strings"
 	"time"
 
+	"github.com/smatand/vinted_go/clientapi"
 	"github.com/smatand/vinted_go/db"
-	"github.com/smatand/vinted_go/api"
 )
 
 const (
-	DefaultWatchersFilePath = "watchers.json"
-	DefaultItemsFilePath    = "items.json"
-	DefaultMaxRandWait      = 120
+	DefaultWatchersFilePath       = "watchers.json"
+	DefaultItemsFilePath          = "items.json"
+	DefaultMaxRandWait            = 120
 	DefaultMaxRandWaitBetweenURLs = 10
 )
 
 type VintedAgent struct {
 	WatchersFilePath string
-	ItemsFilePath string
-	MaxWaitLoops int
-	MaxWaitURLs int
+	ItemsFilePath    string
+	MaxWaitLoops     int
+	MaxWaitURLs      int
 }
 
-func NewVintedAgent(watchersFilePath, itemsFilePath string) * VintedAgent {
+func NewVintedAgent(watchersFilePath, itemsFilePath string) *VintedAgent {
 	if watchersFilePath == "" {
-		watchersFilePath = DefaultWatchersFilePath	
+		watchersFilePath = DefaultWatchersFilePath
 	}
 
 	if itemsFilePath == "" {
@@ -34,13 +34,13 @@ func NewVintedAgent(watchersFilePath, itemsFilePath string) * VintedAgent {
 	}
 	return &VintedAgent{
 		WatchersFilePath: watchersFilePath,
-		ItemsFilePath: itemsFilePath,
-		MaxWaitLoops: DefaultMaxRandWait,
-		MaxWaitURLs: DefaultMaxRandWaitBetweenURLs,
+		ItemsFilePath:    itemsFilePath,
+		MaxWaitLoops:     DefaultMaxRandWait,
+		MaxWaitURLs:      DefaultMaxRandWaitBetweenURLs,
 	}
 }
 
-func (ag * VintedAgent) Start(newItemsChan chan<- []api.VintedItemResp) {
+func (ag *VintedAgent) Start(newItemsChan chan<- []clientapi.VintedItemResp) {
 	for {
 		ag.checkWatchers(newItemsChan)
 
@@ -48,7 +48,7 @@ func (ag * VintedAgent) Start(newItemsChan chan<- []api.VintedItemResp) {
 	}
 }
 
-func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []api.VintedItemResp) {
+func (ag *VintedAgent) checkWatchers(newItemsChan chan<- []clientapi.VintedItemResp) {
 	watcherURLs, err := db.ReadWatchers()
 	if err != nil {
 		log.Fatalf("error while reading watcher urls: %v", err)
@@ -58,7 +58,7 @@ func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []api.VintedItemResp) 
 		log.Println("no watcher to watch")
 	}
 
-	// Parse user given url and then fetch the item from the parsed API url.
+	// Parse user given url and then fetch the item from the parsed clientapi url.
 	for _, watcherURL := range watcherURLs {
 		ag.processWatcher(watcherURL, newItemsChan)
 
@@ -67,8 +67,8 @@ func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []api.VintedItemResp) 
 	}
 }
 
-func (ag * VintedAgent) processWatcher(watcher db.WatcherURL, newItemsChan chan<- []api.VintedItemResp) {
-	items, err := api.GetVintedItems(watcher.URL)
+func (ag *VintedAgent) processWatcher(watcher db.WatcherURL, newItemsChan chan<- []clientapi.VintedItemResp) {
+	items, err := clientapi.GetVintedItems(watcher.URL)
 	if err != nil {
 		log.Printf("error while getting items: %v", err)
 
@@ -83,9 +83,9 @@ func (ag * VintedAgent) processWatcher(watcher db.WatcherURL, newItemsChan chan<
 	}
 }
 
-func (ag * VintedAgent) filterItems(items *api.VintedItemsResp, watcher db.WatcherURL) []api.VintedItemResp {
+func (ag *VintedAgent) filterItems(items *clientapi.VintedItemsResp, watcher db.WatcherURL) []clientapi.VintedItemResp {
 	var itemIDs []db.ItemID
-	var uniqueItems []api.VintedItemResp
+	var uniqueItems []clientapi.VintedItemResp
 
 	for _, item := range items.Items {
 		itemID := db.ItemID{Id: item.ID}
@@ -115,13 +115,12 @@ func (ag * VintedAgent) filterItems(items *api.VintedItemsResp, watcher db.Watch
 	return uniqueItems
 }
 
-func (ag * VintedAgent) randomSleep(max int) {
+func (ag *VintedAgent) randomSleep(max int) {
 	randomWait := time.Duration(rand.Intn(max) + max)
 	time.Sleep(randomWait)
 }
 
-
-func itemContainsCurrency(item api.VintedItemResp, currencies []string) bool {
+func itemContainsCurrency(item clientapi.VintedItemResp, currencies []string) bool {
 	itemCurrency := item.Conversion.SellerCurrency
 	// If the item's currency is empty, probably it is from same country as user.
 	if itemCurrency == "" {

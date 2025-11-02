@@ -1,14 +1,14 @@
-package api_test
+package clientapi_test
 
 import (
 	"testing"
 
-	"github.com/smatand/vinted_go/api"
+	"github.com/smatand/vinted_go/clientapi"
 	"github.com/smatand/vinted_go/vinted"
 )
 
 func TestConstructVintedAPIRequest(t *testing.T) {
-	baseURL := api.GetBaseURL()
+	baseURL := clientapi.GetBaseURL()
 	tests := []struct {
 		name   string
 		vinted vinted.Vinted
@@ -50,7 +50,7 @@ func TestConstructVintedAPIRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := api.ConstructVintedAPIRequest(tt.vinted); got != tt.want {
+			if got := clientapi.ConstructVintedAPIRequest(tt.vinted); got != tt.want {
 				t.Errorf("ConstructVintedAPIRequest() = %v, want %v", got, tt.want)
 			}
 		})

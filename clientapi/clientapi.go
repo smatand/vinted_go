@@ -1,4 +1,4 @@
-package api
+package clientapi
 
 import (
 	"encoding/json"
