@@ -1,13 +1,14 @@
-package vintedapi_test
+package api_test
 
 import (
 	"testing"
 
+	"github.com/smatand/vinted_go/api"
 	"github.com/smatand/vinted_go/vinted"
 )
 
 func TestConstructVintedAPIRequest(t *testing.T) {
-	const baseURL = restAPIEndpoint + "items?page=" + pageNth + "&per_page=" + itemsPerPage
+	baseURL := api.GetBaseURL()
 	tests := []struct {
 		name   string
 		vinted vinted.Vinted
@@ -49,7 +50,7 @@ func TestConstructVintedAPIRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := ConstructVintedAPIRequest(tt.vinted); got != tt.want {
+			if got := api.ConstructVintedAPIRequest(tt.vinted); got != tt.want {
 				t.Errorf("ConstructVintedAPIRequest() = %v, want %v", got, tt.want)
 			}
 		})

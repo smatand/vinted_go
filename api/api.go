@@ -1,4 +1,4 @@
-package vintedapi
+package api
 
 import (
 	"encoding/json"
@@ -89,11 +89,15 @@ func init() {
 	cb = gobreaker.NewCircuitBreaker[*VintedItemsResp](st)
 }
 
+func GetBaseURL() string {
+	return fmt.Sprintf("%sitems?page=%s&per_page=%s", restAPIEndpoint, pageNth, itemsPerPage)
+}
+
 // Constructs rest API URL which by default retrieves 1st page with 16 items. The function then adds
 // other parameters to the URL based on the vinted.Vinted structure.
 // The returned value can be pasted to the URL for the API request.
 func ConstructVintedAPIRequest(v vinted.Vinted) string {
-	baseURL := restAPIEndpoint + "items?page=" + pageNth + "&per_page=" + itemsPerPage
+	baseURL := GetBaseURL()
 
 	baseURL += constructPriceParams(v.PriceParams)
 	baseURL += constructFilterParams(v.FilterParams)

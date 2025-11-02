@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/smatand/vinted_go/db"
-	"github.com/smatand/vinted_go/vintedapi"
+	"github.com/smatand/vinted_go/api"
 )
 
 const (
@@ -40,7 +40,7 @@ func NewVintedAgent(watchersFilePath, itemsFilePath string) * VintedAgent {
 	}
 }
 
-func (ag * VintedAgent) Start(newItemsChan chan<- []vintedapi.VintedItemResp) {
+func (ag * VintedAgent) Start(newItemsChan chan<- []api.VintedItemResp) {
 	for {
 		ag.checkWatchers(newItemsChan)
 
@@ -48,7 +48,7 @@ func (ag * VintedAgent) Start(newItemsChan chan<- []vintedapi.VintedItemResp) {
 	}
 }
 
-func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []vintedapi.VintedItemResp) {
+func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []api.VintedItemResp) {
 	watcherURLs, err := db.ReadWatchers()
 	if err != nil {
 		log.Fatalf("error while reading watcher urls: %v", err)
@@ -67,8 +67,8 @@ func (ag * VintedAgent) checkWatchers(newItemsChan chan<- []vintedapi.VintedItem
 	}
 }
 
-func (ag * VintedAgent) processWatcher(watcher db.WatcherURL, newItemsChan chan<- []vintedapi.VintedItemResp) {
-	items, err := vintedapi.GetVintedItems(watcher.URL)
+func (ag * VintedAgent) processWatcher(watcher db.WatcherURL, newItemsChan chan<- []api.VintedItemResp) {
+	items, err := api.GetVintedItems(watcher.URL)
 	if err != nil {
 		log.Printf("error while getting items: %v", err)
 
@@ -83,9 +83,9 @@ func (ag * VintedAgent) processWatcher(watcher db.WatcherURL, newItemsChan chan<
 	}
 }
 
-func (ag * VintedAgent) filterItems(items *vintedapi.VintedItemsResp, watcher db.WatcherURL) []vintedapi.VintedItemResp {
+func (ag * VintedAgent) filterItems(items *api.VintedItemsResp, watcher db.WatcherURL) []api.VintedItemResp {
 	var itemIDs []db.ItemID
-	var uniqueItems []vintedapi.VintedItemResp
+	var uniqueItems []api.VintedItemResp
 
 	for _, item := range items.Items {
 		itemID := db.ItemID{Id: item.ID}
@@ -121,7 +121,7 @@ func (ag * VintedAgent) randomSleep(max int) {
 }
 
 
-func itemContainsCurrency(item vintedapi.VintedItemResp, currencies []string) bool {
+func itemContainsCurrency(item api.VintedItemResp, currencies []string) bool {
 	itemCurrency := item.Conversion.SellerCurrency
 	// If the item's currency is empty, probably it is from same country as user.
 	if itemCurrency == "" {
